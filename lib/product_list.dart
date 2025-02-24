@@ -60,9 +60,9 @@ class _ProductListScreenState extends State<ProductListScreen> {
                     filteredList.add(newProduct);
                     _saveProducts();
                   });
-                  Navigator.pop(context, true); // Notify Sales Entry Page
+                  Navigator.pop(context, true);
                 } else {
-                  Navigator.pop(context, false); // No change
+                  Navigator.pop(context, false);
                 }
               },
               child: Text("Add"),
@@ -73,15 +73,49 @@ class _ProductListScreenState extends State<ProductListScreen> {
     );
   }
 
+  void _editProduct(int index) {
+    TextEditingController productController = TextEditingController(text: filteredList[index]);
+    
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text("Edit Product"),
+          content: TextField(
+            controller: productController,
+            decoration: InputDecoration(hintText: "Enter New Product Name"),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text("Cancel"),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                String updatedProduct = productController.text.trim();
+                if (updatedProduct.isNotEmpty && !productList.contains(updatedProduct)) {
+                  setState(() {
+                    int originalIndex = productList.indexOf(filteredList[index]);
+                    productList[originalIndex] = updatedProduct;
+                    filteredList[index] = updatedProduct;
+                    _saveProducts();
+                  });
+                  Navigator.pop(context, true);
+                }
+              },
+              child: Text("Save"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   void _filterProducts(String query) {
     setState(() {
-      filteredList =
-          productList
-              .where(
-                (product) =>
-                    product.toLowerCase().contains(query.toLowerCase()),
-              )
-              .toList();
+      filteredList = productList
+          .where((product) => product.toLowerCase().contains(query.toLowerCase()))
+          .toList();
     });
   }
 
@@ -107,24 +141,24 @@ class _ProductListScreenState extends State<ProductListScreen> {
             ),
           ),
           Expanded(
-            child:
-                filteredList.isEmpty
-                    ? Center(child: Text("No products available"))
-                    : ListView.builder(
-                      itemCount: filteredList.length,
-                      itemBuilder: (context, index) {
-                        return Card(
-                          margin: EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
+            child: filteredList.isEmpty
+                ? Center(child: Text("No products available"))
+                : ListView.builder(
+                    itemCount: filteredList.length,
+                    itemBuilder: (context, index) {
+                      return Card(
+                        margin: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        child: ListTile(
+                          title: Text(filteredList[index]),
+                          leading: Icon(Icons.person, color: Colors.blue),
+                          trailing: IconButton(
+                            icon: Icon(Icons.edit, color: Colors.green),
+                            onPressed: () => _editProduct(index),
                           ),
-                          child: ListTile(
-                            title: Text(filteredList[index]),
-                            leading: Icon(Icons.person, color: Colors.blue),
-                          ),
-                        );
-                      },
-                    ),
+                        ),
+                      );
+                    },
+                  ),
           ),
         ],
       ),

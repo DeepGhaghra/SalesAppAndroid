@@ -34,7 +34,7 @@ class _PartyListScreenState extends State<PartyListScreen> {
     await prefs.setStringList('party_list', partyList);
   }
 
-  void _addParty() {
+  void _addParties() {
     TextEditingController partyController = TextEditingController();
 
     showDialog(
@@ -60,12 +60,55 @@ class _PartyListScreenState extends State<PartyListScreen> {
                     filteredList.add(newParty);
                     _saveParties();
                   });
-                  Navigator.pop(context, true); // Notify Sales Entry Page
+                  Navigator.pop(context, true);
                 } else {
-                  Navigator.pop(context, false); // No change
+                  Navigator.pop(context, false);
                 }
               },
               child: Text("Add"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _editParty(int index) {
+    TextEditingController partyController = TextEditingController(
+      text: filteredList[index],
+    );
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text("Edit Party"),
+          content: TextField(
+            controller: partyController,
+            decoration: InputDecoration(hintText: "Enter New Party Name"),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text("Cancel"),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                String updatedParty = partyController.text.trim();
+                if (updatedParty.isNotEmpty &&
+                    !partyList.contains(updatedParty)) {
+                  setState(() {
+                    int originalIndex = partyList.indexOf(filteredList[index]);
+                    partyList[originalIndex] = updatedParty;
+                    filteredList[index] = updatedParty;
+                    _saveParties();
+                  });
+                  Navigator.pop(context, true);
+                } else {
+                  Navigator.pop(context, false);
+                }
+              },
+              child: Text("Update"),
             ),
           ],
         );
@@ -89,7 +132,7 @@ class _PartyListScreenState extends State<PartyListScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text("Party List"),
-        actions: [IconButton(icon: Icon(Icons.add), onPressed: _addParty)],
+        actions: [IconButton(icon: Icon(Icons.add), onPressed: _addParties)],
       ),
       body: Column(
         children: [
@@ -120,6 +163,10 @@ class _PartyListScreenState extends State<PartyListScreen> {
                           child: ListTile(
                             title: Text(filteredList[index]),
                             leading: Icon(Icons.person, color: Colors.blue),
+                            trailing: IconButton(
+                              icon: Icon(Icons.edit, color: Colors.green),
+                              onPressed: () => _editParty(index),
+                            ),
                           ),
                         );
                       },
