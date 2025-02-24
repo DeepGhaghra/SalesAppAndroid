@@ -1,136 +1,133 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class PriceListScreen extends StatefulWidget {
-  const PriceListScreen({super.key});
-
   @override
   _PriceListScreenState createState() => _PriceListScreenState();
 }
 
 class _PriceListScreenState extends State<PriceListScreen> {
-  final Map<String, double> priceList = {
-    'Party A - Product X': 100.0,
-    'Party A - Product Z': 120.0,
-    'Party A - Product Y': 330.0,
-    'Party B - Product Y': 150.0,
-    'Party B - Product X': 250.0,
-    'Party C - Product X': 145.0,
-    'Party C - Product Y': 115.0,
-    'Party C - Product Z': 145.0,
-  };
+  Map<String, Map<String, double>> priceList = {}; // {party: {product: rate}}
+  List<String> partyList = [];
+  List<String> productList = [];
+  String? selectedParty;
+  TextEditingController searchController = TextEditingController();
 
-  String searchQuery = '';
+  @override
+  void initState() {
+    super.initState();
+    _loadPriceList();
+  }
 
-  List<MapEntry<String, double>> get filteredPriceList {
-    return priceList.entries
-        .where(
-          (entry) =>
-              entry.key.toLowerCase().contains(searchQuery.toLowerCase()),
-        )
-        .toList()
-      ..sort((a, b) => a.key.compareTo(b.key)); // Sort alphabetically
+  Future<void> _loadPriceList() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    setState(() {
+      // Load parties
+      partyList = prefs.getStringList('party_list') ?? [];
+      productList = prefs.getStringList('product_list') ?? [];
+      
+      // Load price list data
+      for (String party in partyList) {
+        priceList[party] = {};
+        for (String product in productList) {
+          String key = 'price_${party}_$product';
+          double rate = prefs.getDouble(key) ?? 0.0; // Fetch price, fallback to 0
+          priceList[party]![product] = rate;
+        }
+      }
+    });
+  }
+
+  Future<void> _savePrice(String party, String product, double rate) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble('price_${party}_$product', rate);
+  }
+
+  void _updatePrice(String product, String party) {
+    TextEditingController rateController = TextEditingController(
+      text: priceList[party]?[product]?.toString() ?? '0.0',
+    );
+    
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text("Update Price for $product"),
+          content: TextField(
+            controller: rateController,
+            keyboardType: TextInputType.number,
+            decoration: InputDecoration(labelText: "Enter new price"),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: Text("Cancel")),
+            ElevatedButton(
+              onPressed: () {
+                double newRate = double.tryParse(rateController.text) ?? 0.0;
+                setState(() {
+                  priceList[party]?[product] = newRate;
+                });
+                _savePrice(party, product, newRate);
+                Navigator.pop(context);
+              },
+              child: Text("Save"),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text("Price List"),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.search),
-            onPressed: () {
-              showSearch(
-                context: context,
-                delegate: PriceListSearch(priceList: priceList),
-              );
-            },
+      appBar: AppBar(title: Text("Price List")),
+      body: Column(
+        children: [
+          Padding(
+            padding: EdgeInsets.all(8.0),
+            child: DropdownButton<String>(
+              hint: Text("Select Party"),
+              value: selectedParty,
+              isExpanded: true,
+              onChanged: (value) => setState(() => selectedParty = value),
+              items: partyList.map((party) => DropdownMenuItem(
+                value: party, child: Text(party),
+              )).toList(),
+            ),
+          ),
+          Padding(
+            padding: EdgeInsets.all(8.0),
+            child: TextField(
+              controller: searchController,
+              decoration: InputDecoration(
+                labelText: "Search Product",
+                prefixIcon: Icon(Icons.search),
+                border: OutlineInputBorder(),
+              ),
+              onChanged: (query) => setState(() {}),
+            ),
+          ),
+          Expanded(
+            child: selectedParty == null
+                ? Center(child: Text("Select a party to view rates"))
+                : ListView(
+                    children: productList
+                        .where((product) => product.toLowerCase().contains(searchController.text.toLowerCase()))
+                        .map((product) => Card(
+                              child: ListTile(
+                                title: Text(product),
+                                subtitle: Text("Rate: ₹${priceList[selectedParty]?[product]?.toStringAsFixed(2) ?? '0.00'}"),
+                                trailing: IconButton(
+                                  icon: Icon(Icons.edit, color: Colors.blue),
+                                  onPressed: () => _updatePrice(product, selectedParty!),
+                                ),
+                              ),
+                            ))
+                        .toList(),
+                  ),
           ),
         ],
       ),
-      body:
-          priceList.isEmpty
-              ? Center(
-                child: Text(
-                  "No prices available",
-                  style: TextStyle(fontSize: 18, color: Colors.grey),
-                ),
-              )
-              : ListView.builder(
-                itemCount: filteredPriceList.length,
-                itemBuilder: (context, index) {
-                  final entry = filteredPriceList[index];
-                  return Card(
-                    margin: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    child: ListTile(
-                      title: Text(entry.key),
-                      subtitle: Text("Price: ₹${entry.value.toString()}"),
-                      trailing: Icon(Icons.attach_money, color: Colors.green),
-                    ),
-                  );
-                },
-              ),
-    );
-  }
-}
-
-class PriceListSearch extends SearchDelegate<String> {
-  final Map<String, double> priceList;
-
-  PriceListSearch({required this.priceList});
-
-  @override
-  List<Widget> buildActions(BuildContext context) {
-    return [
-      IconButton(
-        icon: Icon(Icons.clear),
-        onPressed: () {
-          query = '';
-        },
-      ),
-    ];
-  }
-
-  @override
-  Widget buildLeading(BuildContext context) {
-    return IconButton(
-      icon: Icon(Icons.arrow_back),
-      onPressed: () {
-        close(context, null!);
-      },
-    );
-  }
-
-  @override
-  Widget buildResults(BuildContext context) {
-    return _buildSearchResults();
-  }
-
-  @override
-  Widget buildSuggestions(BuildContext context) {
-    return _buildSearchResults();
-  }
-
-  Widget _buildSearchResults() {
-    final filteredList =
-        priceList.entries
-            .where(
-              (entry) => entry.key.toLowerCase().contains(query.toLowerCase()),
-            )
-            .toList();
-
-    return ListView.builder(
-      itemCount: filteredList.length,
-      itemBuilder: (context, index) {
-        final entry = filteredList[index];
-        return ListTile(
-          title: Text(entry.key),
-          subtitle: Text("Price: ₹${entry.value.toString()}"),
-          onTap: () {
-            close(context, entry.key);
-          },
-        );
-      },
     );
   }
 }
