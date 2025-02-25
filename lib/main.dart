@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:excel/excel.dart';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:intl/intl.dart';
@@ -8,6 +7,7 @@ import 'package:sales_app/party_list.dart'; // Ensure this import is correct
 import 'package:sales_app/product_list.dart';
 import 'package:sales_app/pricelist.dart';
 import 'package:search_choices/search_choices.dart'; // Import the package
+import 'package:sales_app/ExportData.dart';
 
 void main() {
   runApp(SalesEntryApp());
@@ -168,53 +168,6 @@ class _SalesEntryScreenState extends State<SalesEntryScreen> {
     }
   }
 
-  Future<void> _exportToExcel() async {
-    try {
-      var excel = Excel.createExcel();
-      Sheet sheet = excel['SalesData'];
-      sheet.appendRow([
-        "Date",
-        "Invoice No",
-        "Party Name",
-        "Product Name",
-        "Quantity",
-        "Rate",
-        "Amount",
-      ]);
-      for (var entry in savedEntries) {
-        sheet.appendRow([
-          entry['date'],
-          entry['invoice'],
-          entry['party'],
-          entry['product'],
-          (int.tryParse(entry['qty']) ?? 0),
-          (double.tryParse(entry['rate'].toString()) ?? 0.0),
-          (double.tryParse(entry['amount'].toString()) ?? 0.0),
-        ]);
-      }
-
-      String formattedDate = DateFormat('dd-MM').format(DateTime.now());
-      String fileName = "salesentry-$formattedDate.xlsx";
-
-      Directory directory = await getApplicationDocumentsDirectory();
-
-      String filePath = "${directory.path}/$fileName";
-      File(filePath)
-        ..createSync(recursive: true)
-        ..writeAsBytesSync(excel.encode()!);
-
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Exported to $filePath')));
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Failed to export: $e')));
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -262,7 +215,17 @@ class _SalesEntryScreenState extends State<SalesEntryScreen> {
                   MaterialPageRoute(builder: (context) => PriceListScreen()),
                 );
               },
-            ),
+            ),ListTile(
+              leading: Icon(Icons.upload_file),
+              title: Text("Export Data"),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => ExportDataScreen()),
+                );
+              },
+            )
           ],
         ),
       ),
@@ -354,10 +317,7 @@ class _SalesEntryScreenState extends State<SalesEntryScreen> {
               Text("Rate: ₹${rate.toString()}"),
               Text("Amount: ₹${amount.toString()}"),
               ElevatedButton(onPressed: _saveEntry, child: Text('Save Entry')),
-              ElevatedButton(
-                onPressed: _exportToExcel,
-                child: Text('Export to Excel'),
-              ),
+              
               Expanded(
                 child:
                     savedEntries.isEmpty

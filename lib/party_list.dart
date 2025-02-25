@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class PartyListScreen extends StatefulWidget {
+  const PartyListScreen({super.key});
+
   @override
   _PartyListScreenState createState() => _PartyListScreenState();
 }

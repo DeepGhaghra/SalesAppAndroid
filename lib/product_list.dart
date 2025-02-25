@@ -98,74 +98,76 @@ class _ProductListScreenState extends State<ProductListScreen> {
     );
   }
 
- void _editProduct(int index) async {
-  String oldProductName = filteredList[index]; 
-  TextEditingController productController = TextEditingController(text: oldProductName);
-  TextEditingController rateController = TextEditingController(
-    text: productRates[oldProductName]?.toString() ?? '0',
-  );
+  void _editProduct(int index) async {
+    String oldProductName = filteredList[index];
+    TextEditingController productController = TextEditingController(
+      text: oldProductName,
+    );
+    TextEditingController rateController = TextEditingController(
+      text: productRates[oldProductName]?.toString() ?? '0',
+    );
 
-  showDialog(
-    context: context,
-    builder: (context) {
-      return AlertDialog(
-        title: Text("Edit Product"),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: productController,
-              decoration: InputDecoration(hintText: "Enter New Product Name"),
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text("Edit Product"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: productController,
+                decoration: InputDecoration(hintText: "Enter New Product Name"),
+              ),
+              SizedBox(height: 10),
+              TextField(
+                controller: rateController,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(hintText: "Enter New Rate"),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text("Cancel"),
             ),
-            SizedBox(height: 10),
-            TextField(
-              controller: rateController,
-              keyboardType: TextInputType.number,
-              decoration: InputDecoration(hintText: "Enter New Rate"),
+            ElevatedButton(
+              onPressed: () async {
+                String newProductName = productController.text.trim();
+                int newRate = int.tryParse(rateController.text.trim()) ?? 0;
+
+                if (newProductName.isNotEmpty) {
+                  setState(() {
+                    int originalIndex = productList.indexOf(oldProductName);
+                    productList[originalIndex] = newProductName;
+                    filteredList[index] = newProductName;
+
+                    // Update product rates map
+                    productRates.remove(oldProductName);
+                    productRates[newProductName] = newRate.toInt();
+                  });
+
+                  // Save updated values in SharedPreferences
+                  SharedPreferences prefs =
+                      await SharedPreferences.getInstance();
+                  await prefs.setStringList('product_list', productList);
+                  await prefs.remove('rate_$oldProductName'); // Remove old key
+                  await prefs.setInt(
+                    'rate_$newProductName',
+                    newRate,
+                  ); // Save as integer
+
+                  Navigator.pop(context, true);
+                }
+              },
+              child: Text("Save"),
             ),
           ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text("Cancel"),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              String newProductName = productController.text.trim();
-              int newRate = int.tryParse(rateController.text.trim()) ?? 0;
-
-              if (newProductName.isNotEmpty) {
-                setState(() {
-                  int originalIndex = productList.indexOf(oldProductName);
-                  productList[originalIndex] = newProductName;
-                  filteredList[index] = newProductName;
-
-                  // Update product rates map
-                  productRates.remove(oldProductName);
-                  productRates[newProductName] = newRate.toInt();
-                });
-
-                // Save updated values in SharedPreferences
-                SharedPreferences prefs = await SharedPreferences.getInstance();
-                await prefs.setStringList('product_list', productList);
-                await prefs.remove('rate_$oldProductName'); // Remove old key
-                await prefs.setInt('rate_$newProductName', newRate); // Save as integer
-
-                // Debug print
-                print("Saved: $newProductName - Rate: $newRate");
-
-                Navigator.pop(context, true);
-              }
-            },
-            child: Text("Save"),
-          ),
-        ],
-      );
-    },
-  );
-}
-
+        );
+      },
+    );
+  }
 
   void _filterProducts(String query) {
     setState(() {
