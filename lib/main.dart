@@ -1,15 +1,25 @@
+import 'dart:async';
+import 'dart:io';
+import 'utils/sync_utils.dart'; // Import sync utils
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:io';
-import 'package:path_provider/path_provider.dart';
 import 'package:intl/intl.dart';
 import 'package:sales_app/party_list.dart'; // Ensure this import is correct
 import 'package:sales_app/product_list.dart';
 import 'package:sales_app/pricelist.dart';
 import 'package:search_choices/search_choices.dart'; // Import the package
 import 'package:sales_app/ExportData.dart';
+import 'dart:convert';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Supabase.initialize(
+    url: 'https://bnvwbcndpfndzgcrsicc.supabase.co',
+    anonKey:
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJudndiY25kcGZuZHpnY3JzaWNjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDA0Nzg4NzIsImV4cCI6MjA1NjA1NDg3Mn0.YDEmWHZnsVrgPbf71ytIVm4IrOf9xTqzthlhluW_OLI',
+  );
   runApp(SalesEntryApp());
 }
 
@@ -39,27 +49,64 @@ class _SalesEntryScreenState extends State<SalesEntryScreen> {
   String? selectedParty;
   String? selectedProduct;
   TextEditingController qtyController = TextEditingController();
-  double rate = 0.0;
-  double amount = 0.0;
+  TextEditingController rateController = TextEditingController();
+
+  int rate = 0;
+  int amount = 0;
   List<String> partyList = [];
-  List<String> productList = ['Product X', 'Product Y', 'Product Z'];
-  Map<String, double> priceList = {
-    'Party A-Product X': 100.0,
-    'Party B-Product Y': 150.0,
-    'Party C-Product Z': 200.0,
-    'Party A-Product Z': 120.0,
-    'Party C-Product X': 145.0,
-  };
+  List<String> productList = [];
+  Map<String, Map<String, int>> priceList = {}; // {party: {product: rate}}
+  Map<String, int> productRates = {}; // Base rates
+
   List<Map<String, dynamic>> savedEntries = [];
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final FocusNode partyFocusNode = FocusNode();
+  final SupabaseClient supabase = Supabase.instance.client;
+  late SharedPreferences prefs;
+  String lastSyncTime = 'Never';
 
   @override
   void initState() {
     super.initState();
+    ConnectivityUtils.startInternetListening(() {
+      setState(() {}); // ✅ Refresh UI when internet restores
+    });
     _loadLastDate();
     _loadPartyList();
+    _loadProductList();
+    _loadPriceList();
     _generateInvoiceNo();
+    initializeApp();
+  }
+
+  @override
+  void dispose() {
+    ConnectivityUtils.dispose(); // ✅ Properly dispose the listener
+    super.dispose();
+  }
+
+  Future<void> initializeApp() async {
+    prefs = await SharedPreferences.getInstance();
+    lastSyncTime = prefs.getString('last_sync') ?? 'Never';
+    await fetchDataFromSupabase();
+  }
+
+  Future<void> fetchDataFromSupabase() async {
+    try {
+      final partyResponse = await supabase.from('party_list').select();
+      final productResponse = await supabase.from('product_list').select();
+      final priceResponse = await supabase.from('price_list').select();
+
+      await prefs.setString('party_list', partyResponse.toString());
+      await prefs.setString('product_list', productResponse.toString());
+      await prefs.setString('price_list', priceResponse.toString());
+
+      lastSyncTime = DateTime.now().toString();
+      await prefs.setString('last_sync', lastSyncTime);
+      setState(() {});
+    } catch (e) {
+      print('Error fetching data: $e');
+    }
   }
 
   Future<void> _loadPartyList() async {
@@ -67,6 +114,38 @@ class _SalesEntryScreenState extends State<SalesEntryScreen> {
     setState(() {
       partyList = prefs.getStringList('party_list') ?? [];
     });
+  }
+
+  Future<void> _loadProductList() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    setState(() {
+      productList = prefs.getStringList('product_list') ?? [];
+    });
+  }
+
+  Future<void> _loadPriceList() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? priceListJson = prefs.getString('price_list');
+    String? productRatesJson = prefs.getString('product_rates');
+    print('Raw priceList JSON: $priceListJson');
+    print('Raw productRates JSON: $productRatesJson');
+    if (priceListJson != null) {
+      setState(() {
+        priceList = Map<String, Map<String, int>>.from(
+          jsonDecode(
+            priceListJson,
+          ).map((key, value) => MapEntry(key, Map<String, int>.from(value))),
+        );
+      });
+    }
+
+    if (productRatesJson != null) {
+      setState(() {
+        productRates = Map<String, int>.from(jsonDecode(productRatesJson));
+      });
+    }
+    print("Loaded priceList: $priceList"); // Debugging
+    print("Loaded productRates: $productRates"); // Debugging
   }
 
   Future<void> _loadLastDate() async {
@@ -111,7 +190,31 @@ class _SalesEntryScreenState extends State<SalesEntryScreen> {
   void _updateRate() {
     if (selectedParty != null && selectedProduct != null) {
       setState(() {
-        rate = priceList['$selectedParty-$selectedProduct'] ?? 0.0;
+        // Try fetching the rate from the price list
+        int? partySpecificRate = priceList[selectedParty]?[selectedProduct];
+        int? baseRate = productRates[selectedProduct]; // Base selling price
+        // Debugging prints
+        print("Selected Party: $selectedParty");
+        print("Selected Product: $selectedProduct");
+        print("Party-Specific Rate: $partySpecificRate");
+        print("Base Selling Price: $baseRate");
+        if (partySpecificRate != null) {
+          rate = partySpecificRate; // Use party-specific rate if available
+        } else if (baseRate != null) {
+          rate = baseRate; // Use base selling price
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                "No rate found for this party. Using base rate: ₹$rate. Please update if needed.",
+              ),
+              duration: Duration(seconds: 3),
+            ),
+          );
+        } else {
+          rate = 0; // If no rate is found at all, default to 0
+        }
+
+        rateController.text = rate.toString();
         amount = rate * (int.tryParse(qtyController.text) ?? 0);
       });
     }
@@ -158,8 +261,8 @@ class _SalesEntryScreenState extends State<SalesEntryScreen> {
         selectedParty = null;
         selectedProduct = null;
         qtyController.clear();
-        rate = 0.0;
-        amount = 0.0;
+        rate = 0;
+        amount = 0;
         _generateInvoiceNo();
 
         // Move focus to the Party Name field
@@ -178,9 +281,24 @@ class _SalesEntryScreenState extends State<SalesEntryScreen> {
           children: [
             DrawerHeader(
               decoration: BoxDecoration(color: Colors.blue),
-              child: Text(
-                'Menu',
-                style: TextStyle(color: Colors.white, fontSize: 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Text(
+                    'Menu',
+                    style: TextStyle(color: Colors.white, fontSize: 28),
+                  ),
+                  SizedBox(height: 10),
+                  Text(
+                    'Last Sync: $lastSyncTime',
+                    style: TextStyle(
+                      color: Colors.grey[200],
+                      fontWeight: FontWeight.w500,
+                      fontSize: 16,
+                    ),
+                  ),
+                ],
               ),
             ),
             ListTile(
@@ -215,7 +333,8 @@ class _SalesEntryScreenState extends State<SalesEntryScreen> {
                   MaterialPageRoute(builder: (context) => PriceListScreen()),
                 );
               },
-            ),ListTile(
+            ),
+            ListTile(
               leading: Icon(Icons.upload_file),
               title: Text("Export Data"),
               onTap: () {
@@ -225,7 +344,7 @@ class _SalesEntryScreenState extends State<SalesEntryScreen> {
                   MaterialPageRoute(builder: (context) => ExportDataScreen()),
                 );
               },
-            )
+            ),
           ],
         ),
       ),
@@ -271,6 +390,8 @@ class _SalesEntryScreenState extends State<SalesEntryScreen> {
                 onChanged: (value) {
                   setState(() {
                     selectedParty = value;
+                    print("Selected Party Changed: $selectedParty");
+
                     _updateRate();
                   });
                 },
@@ -294,6 +415,8 @@ class _SalesEntryScreenState extends State<SalesEntryScreen> {
                 onChanged: (value) {
                   setState(() {
                     selectedProduct = value;
+                    print("Selected Product Changed: $selectedProduct");
+
                     _updateRate();
                   });
                 },
@@ -317,7 +440,7 @@ class _SalesEntryScreenState extends State<SalesEntryScreen> {
               Text("Rate: ₹${rate.toString()}"),
               Text("Amount: ₹${amount.toString()}"),
               ElevatedButton(onPressed: _saveEntry, child: Text('Save Entry')),
-              
+
               Expanded(
                 child:
                     savedEntries.isEmpty

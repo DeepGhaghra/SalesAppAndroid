@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ProductListScreen extends StatefulWidget {
+  
   @override
   _ProductListScreenState createState() => _ProductListScreenState();
 }
@@ -11,6 +14,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
   List<String> filteredList = [];
   Map<String, int> productRates = {}; // Stores product rates
   TextEditingController searchController = TextEditingController();
+  final SupabaseClient supabase = Supabase.instance.client;
 
   @override
   void initState() {
@@ -18,28 +22,27 @@ class _ProductListScreenState extends State<ProductListScreen> {
     _loadProducts();
   }
 
+  Future<void> _saveProducts() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+
+    await prefs.setStringList('product_list', productList);
+    await prefs.setString('product_rates', jsonEncode(productRates));
+  }
+
   Future<void> _loadProducts() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     List<String>? savedProducts = prefs.getStringList('product_list');
 
     if (savedProducts != null) {
-      setState(() {
-        productList = savedProducts;
-        filteredList = List.from(productList);
-      });
-      for (String product in productList) {
-        setState(() {
-          productRates[product] = prefs.getInt('rate_$product') ?? 0;
-        });
-      }
-    }
-  }
+      productList = savedProducts;
+      filteredList = List.from(productList);
 
-  Future<void> _saveProducts() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList('product_list', productList);
-    for (var entry in productRates.entries) {
-      await prefs.setInt('rate_${entry.key}', entry.value);
+      String? encodedRates = prefs.getString('product_rates');
+      if (encodedRates != null) {
+        productRates = Map<String, int>.from(jsonDecode(encodedRates));
+      }
+
+      setState(() {});
     }
   }
 
