@@ -37,7 +37,7 @@ class _PriceListScreenState extends State<PriceListScreen> {
     try {
       final response = await supabase
           .from('products')
-          .select('id, product_name')
+          .select('id, product_name,product_rate')
           .order('product_name', ascending: true);
       setState(() {
         fullProductList = List<Map<String, dynamic>>.from(response);
@@ -92,7 +92,7 @@ class _PriceListScreenState extends State<PriceListScreen> {
 
       int? partyIdInt = partyResponse['id'] as int?;
       if (partyIdInt == null) {
-        Fluttertoast.showToast(msg: "⚠️ Invalid party selection!");
+        Fluttertoast.showToast(msg: "⚠️ Select party First then Edit rates!");
         return;
       }
       selectedPartyId = partyIdInt.toString();
@@ -161,7 +161,7 @@ class _PriceListScreenState extends State<PriceListScreen> {
     }
     int? partyIdInt = int.tryParse(selectedPartyId ?? '');
     if (partyIdInt == null) {
-      Fluttertoast.showToast(msg: "⚠️ Invalid party selection!");
+      Fluttertoast.showToast(msg: "⚠️ Select party First then Edit rates!");
       return;
     }
     try {
@@ -194,7 +194,7 @@ class _PriceListScreenState extends State<PriceListScreen> {
           controller: _partyController,
           focusNode: _partyFocusNode,
           decoration: InputDecoration(
-            labelText: "Search by Party Name",
+            labelText: "Search by Party Name to edit product prices",
             prefixIcon: Icon(Icons.search),
             border: OutlineInputBorder(),
           ),
@@ -258,44 +258,106 @@ class _PriceListScreenState extends State<PriceListScreen> {
                         int productId = fullProductList[index]['id'];
                         String productName =
                             fullProductList[index]['product_name'];
-                        String priceText =
+                        int basePrice =
+                            fullProductList[index]['product_rate'] ?? 0;
+                        bool hasCustomPrice = partyPrices.containsKey(
+                          productId,
+                        );
+                        int? customPrice =
+                            hasCustomPrice ? partyPrices[productId] : null;
+                        /*String priceText =
                             partyPrices.containsKey(productId)
                                 ? "₹${partyPrices[productId]}"
-                                : "Not Set";
+                                : "₹${fullProductList[index]['product_rate']}";*/
 
                         return Card(
                           margin: EdgeInsets.symmetric(
                             horizontal: 8,
                             vertical: 6,
                           ),
-                          elevation: 3,
+                          elevation:
+                              4, // Slightly more elevation for better shadow
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
+                            borderRadius: BorderRadius.circular(12),
                           ),
-                          child: ListTile(
-                            title: Text(
-                              productName,
-                              style: TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                            subtitle: Text(
-                              priceText,
-                              style: TextStyle(
-                                color:
-                                    priceText == "Not Set"
-                                        ? Colors.red
-                                        : Colors.green,
-                                fontSize: 16,
-                              ),
-                            ),
-                            leading: Icon(
-                              Icons.price_change,
-                              color: Colors.blue,
-                            ),
-                            trailing: IconButton(
-                              icon: Icon(Icons.edit, color: Colors.orange),
-                              onPressed: () {
-                                _showEditPriceDialog(productId, productName);
-                              },
+                          child: Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        productName,
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16,
+                                        ),
+                                      ),
+                                    ),
+                                    IconButton(
+                                      icon: Icon(
+                                        Icons.edit,
+                                        color: Colors.orange,
+                                      ),
+                                      onPressed: () {
+                                        _showEditPriceDialog(
+                                          productId,
+                                          productName,
+                                        );
+                                      },
+                                    ),
+                                  ],
+                                ),
+                                Divider(), // Separator line for clarity
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          Icons.currency_rupee_sharp,
+                                          color: Colors.green,
+                                        ),
+                                        SizedBox(width: 5),
+                                        Text(
+                                          hasCustomPrice
+                                              ? "₹${customPrice!.toStringAsFixed(2)}"
+                                              : "Not Set",
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            color:
+                                                hasCustomPrice
+                                                    ? Colors.green
+                                                    : Colors.red,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          Icons.local_offer,
+                                          color: Colors.blue,
+                                        ),
+                                        SizedBox(width: 5),
+                                        Text(
+                                          "Base: ₹${basePrice.toStringAsFixed(2)}",
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            color: Colors.blue,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ],
                             ),
                           ),
                         );
