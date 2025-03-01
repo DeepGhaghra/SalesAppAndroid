@@ -53,6 +53,11 @@ class _ProductListScreenState extends State<ProductListScreen> {
           .select('id, product_name, product_rate');
       List<Map<String, dynamic>> cloudProducts =
           List<Map<String, dynamic>>.from(response);
+      cloudProducts.sort(
+        (a, b) => (a['product_name'] as String).toLowerCase().compareTo(
+          (b['product_name'] as String).toLowerCase(),
+        ),
+      );
 
       setState(() {
         productList = cloudProducts;
@@ -120,11 +125,12 @@ class _ProductListScreenState extends State<ProductListScreen> {
             children: [
               TextField(
                 controller: nameController,
-                decoration: InputDecoration(hintText: "Product Name"),
+                decoration: InputDecoration(labelText: "Product Name"),
               ),
+              SizedBox(height: 10),
               TextField(
                 controller: rateController,
-                decoration: InputDecoration(hintText: "Product Base Price"),
+                decoration: InputDecoration(labelText: "Product Base Price"),
                 keyboardType: TextInputType.number,
               ),
             ],
@@ -158,8 +164,26 @@ class _ProductListScreenState extends State<ProductListScreen> {
     if (name.isEmpty || rate.isEmpty) return;
 
     try {
-      int sellRate = int.parse(rate); // ✅ Convert rate to integer
+      int sellRate = int.tryParse(rate) ?? 0;
+      if (sellRate == 0) {
+        Fluttertoast.showToast(
+          msg: "⚠️ Invalid price format. Enter whole numbers only.",
+        );
+        return;
+      }
+      // ✅ Convert name to lowercase for case-insensitive check
+      String nameLower = name.toLowerCase();
 
+      // ✅ Check if product already exists in local list
+      List<String> lowerCaseProducts =
+          productList
+              .map((p) => (p['product_name'] as String).toLowerCase())
+              .toList();
+
+      if (lowerCaseProducts.contains(nameLower)) {
+        Fluttertoast.showToast(msg: "⚠️ Product '$name' already exists!");
+        return;
+      }
       await supabase.from('products').insert({
         'product_name': name,
         'product_rate': sellRate,
@@ -169,9 +193,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
       await _syncFromSupabase();
     } catch (e) {
       print("❌ Error adding product: $e");
-      Fluttertoast.showToast(
-        msg: "⚠️ Invalid price format. Enter whole numbers only.",
-      );
+      Fluttertoast.showToast(msg: "⚠️ Error adding product. Try again.");
     }
   }
 
@@ -182,9 +204,11 @@ class _ProductListScreenState extends State<ProductListScreen> {
     }
 
     String oldName = filteredList[index]['product_name'];
+    int oldRate = filteredList[index]['product_rate'];
+
     TextEditingController nameController = TextEditingController(text: oldName);
     TextEditingController rateController = TextEditingController(
-      text: filteredList[index]['product_rate'].toString(),
+      text: oldRate.toString(),
     );
 
     showDialog(
@@ -195,10 +219,15 @@ class _ProductListScreenState extends State<ProductListScreen> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(controller: nameController),
+              TextField(
+                controller: nameController,
+                decoration: InputDecoration(labelText: "Product Name"),
+              ),
+              SizedBox(height: 10),
               TextField(
                 controller: rateController,
                 keyboardType: TextInputType.number,
+                decoration: InputDecoration(labelText: "Product Price"),
               ),
             ],
           ),
@@ -211,12 +240,26 @@ class _ProductListScreenState extends State<ProductListScreen> {
               onPressed: () async {
                 String updatedName = nameController.text.trim();
                 String updatedRate = rateController.text.trim();
-                if (updatedName.isEmpty ||
-                    updatedRate.isEmpty ||
-                    updatedName == oldName)
+                if (updatedName.isEmpty || updatedRate.isEmpty) {
+                  Fluttertoast.showToast(msg: "⚠️ Fields cannot be empty!");
                   return;
+                }
 
+                int updatedRateInt = int.tryParse(updatedRate) ?? 0;
+                if (updatedRateInt == 0) {
+                  Fluttertoast.showToast(
+                    msg: "⚠️ Sell Rate must be a valid number!",
+                  );
+                  return;
+                }
                 String updatedNameLower = updatedName.toLowerCase();
+                // ✅ Check if either name or rate is changed
+                if (updatedNameLower == oldName.toLowerCase() &&
+                    updatedRateInt == oldRate) {
+                  Navigator.pop(context); // ✅ Close popup
+                  Fluttertoast.showToast(msg: "⚠️ No changes made!");
+                  return;
+                }
                 List<String> lowerCaseProducts =
                     productList
                         .map((p) => (p['product_name'] as String).toLowerCase())
@@ -235,9 +278,9 @@ class _ProductListScreenState extends State<ProductListScreen> {
                       .from('products')
                       .update({
                         'product_name': updatedName,
-                        'product_rate': updatedRate,
+                        'product_rate': updatedRateInt,
                       })
-                      .eq('product_name', oldName);
+                      .eq('id', filteredList[index]['id']); // ✅ Update using ID
                   Fluttertoast.showToast(
                     msg: "✅ Product updated successfully!",
                   );
@@ -277,18 +320,30 @@ class _ProductListScreenState extends State<ProductListScreen> {
             child: ListView.builder(
               itemCount: filteredList.length,
               itemBuilder: (context, index) {
-                return ListTile(
-                  title: Text(filteredList[index]['product_name']),
-                  subtitle: Text(
-                    "Product Price: ₹${filteredList[index]['product_rate']}",
+                return Card(
+                  margin: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                  elevation: 3,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                  trailing:
-                      isOnline
-                          ? IconButton(
-                            icon: Icon(Icons.edit),
-                            onPressed: () => _editProduct(index),
-                          )
-                          : Icon(Icons.lock, color: Colors.grey),
+                  child: ListTile(
+                    title: Text(
+                      filteredList[index]['product_name'],
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    subtitle: Text(
+                      "₹${filteredList[index]['product_rate']}",
+                      style: TextStyle(color: Colors.green, fontSize: 16),
+                    ),
+                    leading: Icon(Icons.shopping_cart, color: Colors.blue),
+                    trailing:
+                        isOnline
+                            ? IconButton(
+                              icon: Icon(Icons.edit, color: Colors.orange),
+                              onPressed: () => _editProduct(index),
+                            )
+                            : Icon(Icons.lock, color: Colors.grey),
+                  ),
                 );
               },
             ),

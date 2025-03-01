@@ -11,16 +11,14 @@ class ConnectivityUtils {
     _connectivitySubscription = Connectivity().onConnectivityChanged.listen((
       result,
     ) async {
-      print("🌍 Connectivity changed: $result");
 
       _debounceTimer?.cancel();
       _debounceTimer = Timer(Duration(milliseconds: 500), () async {
         bool hasInternet = await ConnectivityUtils.hasInternet();
         if (hasInternet) {
-          print("✅ Internet restored");
+         
           onConnectivityRestored(); // Notify the UI to switch to online mode
         } else {
-          print("🔴 Still offline...");
         }
       });
     });
@@ -36,7 +34,6 @@ class ConnectivityUtils {
         (result) => result.isNotEmpty && result[0].rawAddress.isNotEmpty,
       );
     } catch (e) {
-      print("⚠️ Internet check failed: $e");
       return false;
     }
   }

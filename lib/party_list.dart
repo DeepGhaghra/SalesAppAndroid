@@ -36,24 +36,15 @@ class _PartyListScreenState extends State<PartyListScreen> {
   }
 
   Future<void> _loadParties() async {
-    print("🔄 _loadParties() started...");
-
     if (kIsWeb) {
-      print("🌐 Web detected: Fetching from Supabase...");
-
       // Web: Fetch directly from Supabase (no caching)
       await _syncFromSupabase();
       return;
     }
-
-    print("📲 Mobile detected: Trying to load cached data first...");
     await _loadCachedParties(); // ✅ Ensure it runs before fetching online
     if (isOnline) {
-      print("✅ Online detected: Fetching from Supabase...");
       await _syncFromSupabase();
-    } else {
-      print("⚠️ Offline: Using cached data.");
-    }
+    } else {}
   }
 
   void _subscribeToRealtimeUpdates() {
@@ -66,8 +57,6 @@ class _PartyListScreenState extends State<PartyListScreen> {
           schema: 'public',
           table: 'parties',
           callback: (payload) {
-            print("🔄 Realtime update received: $payload");
-
             // ✅ Re-fetch parties when a change is detected
             _syncFromSupabase();
           },
@@ -90,29 +79,20 @@ class _PartyListScreenState extends State<PartyListScreen> {
       if (!kIsWeb) {
         await DatabaseHelper.instance.cacheParties(partyList);
       }
-    } catch (e) {
-      print("Error syncing from Supabase: $e");
-    }
+    } catch (_) {}
   }
 
   Future<void> _loadCachedParties() async {
     if (kIsWeb) return; // Web fetches directly from Supabase
-    print("🔍 Loading cached parties...");
 
     List<String> cachedParties =
         await DatabaseHelper.instance.getCachedParties();
-    print("✅ Cached Parties Retrieved: $cachedParties");
+    cachedParties.sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
 
     setState(() {
       partyList = cachedParties;
       filteredList = List.from(partyList);
     });
-
-    if (partyList.isEmpty) {
-      print("⚠️ No cached data found!");
-    } else {
-      print("📌 Cached data loaded successfully.");
-    }
   }
 
   Future<void> _addParty(String newParty, BuildContext dialogContext) async {
@@ -204,7 +184,6 @@ class _PartyListScreenState extends State<PartyListScreen> {
                   await _syncFromSupabase();
                   Navigator.pop(context);
                 } catch (e) {
-                  print("Error updating party: $e");
                   Fluttertoast.showToast(msg: "Error updating party.");
                 }
               },

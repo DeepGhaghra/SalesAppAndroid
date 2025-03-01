@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 
 class PriceListScreen extends StatefulWidget {
   const PriceListScreen({super.key});
@@ -9,70 +10,137 @@ class PriceListScreen extends StatefulWidget {
 }
 
 class _PriceListScreenState extends State<PriceListScreen> {
-  Map<String, Map<String, int>> priceList = {}; // {party: {product: rate}}
-  List<String> partyList = [];
-  List<String> productList = [];
-  List<String> filteredProducts = [];
-  String? selectedParty;
-  TextEditingController searchController = TextEditingController();
-  TextEditingController partySearchController = TextEditingController();
+  final SupabaseClient supabase = Supabase.instance.client;
+  List<Map<String, dynamic>> fullProductList = []; // All products
+  Map<int, dynamic> partyPrices = {}; // Product prices for selected party
+  TextEditingController _partyController = TextEditingController();
+  final FocusNode _partyFocusNode = FocusNode();
+  List<String> partySuggestions = [];
+  bool isFetchingPrices = false;
+  bool isUserTyping = false; // ✅ Track if user is typing
+  String? selectedPartyId;
 
   @override
   void initState() {
     super.initState();
-    _loadPriceList();
-  }
-
-  Future<void> _loadPriceList() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    setState(() {
-      partyList = (prefs.getStringList('party_list') ?? [])..sort(); // Alphabetical order
-      productList = prefs.getStringList('product_list') ?? [];
-      filteredProducts = List.from(productList);
-
-      for (String party in partyList) {
-        priceList[party] = {};
-        for (String product in productList) {
-          String key = 'price_${party}_$product';
-          int rate = prefs.getInt(key) ?? 0;
-          priceList[party]![product] = rate;
-        }
+    _fetchAllProducts();
+    _partyFocusNode.addListener(() {
+      if (!_partyFocusNode.hasFocus) {
+        setState(
+          () => partySuggestions.clear(),
+        ); // ✅ Clear suggestions when field loses focus
       }
     });
   }
 
-  Future<void> _savePrice(String party, String product, int rate) async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('price_${party}_$product', rate);
+  Future<void> _fetchAllProducts() async {
+    try {
+      final response = await supabase
+          .from('products')
+          .select('id, product_name')
+          .order('product_name', ascending: true);
+      setState(() {
+        fullProductList = List<Map<String, dynamic>>.from(response);
+      });
+    } catch (e) {
+      print("❌ Error fetching products: $e");
+    }
   }
 
-  void _updatePrice(String product, String party) {
-    TextEditingController rateController = TextEditingController(
-      text: priceList[party]?[product]?.toString() ?? '0',
+  Future<void> _fetchPartySuggestions(String query) async {
+    if (query.isEmpty) {
+      setState(() => partySuggestions.clear());
+      return;
+    }
+    setState(() => isUserTyping = true);
+
+    try {
+      final response = await supabase
+          .from('parties')
+          .select('partyname')
+          .ilike('partyname', '%$query%') // Case-insensitive search
+          .limit(5); // Show top 5 results
+
+      setState(() {
+        partySuggestions = List<String>.from(
+          response.map((p) => p['partyname']),
+        );
+      });
+    } catch (e) {
+      print("❌ Error fetching party suggestions: $e");
+    }
+  }
+
+  Future<void> _fetchPartyPrices(String partyName) async {
+    if (isFetchingPrices) return; // ✅ Prevent duplicate API calls
+    setState(() {
+      isFetchingPrices = true;
+      isUserTyping = false; // ✅ Stop suggestions after selection
+    });
+    try {
+      final partyResponse =
+          await supabase
+              .from('parties')
+              .select('id')
+              .eq('partyname', partyName)
+              .maybeSingle();
+
+      if (partyResponse == null) {
+        Fluttertoast.showToast(msg: "⚠️ Party not found!");
+        return;
+      }
+
+      int? partyIdInt = partyResponse['id'] as int?;
+      if (partyIdInt == null) {
+        Fluttertoast.showToast(msg: "⚠️ Invalid party selection!");
+        return;
+      }
+      selectedPartyId = partyIdInt.toString();
+
+      final response = await supabase
+          .from('pricelist')
+          .select('product_id, price')
+          .eq('party_id', partyIdInt);
+
+      setState(() {
+        partyPrices = {
+          for (var item in response) item['product_id']: item['price'],
+        };
+        isFetchingPrices = false;
+        partySuggestions.clear(); // ✅ Instantly clear suggestions
+      });
+
+      print("✅ Loaded ${partyPrices.length} prices for party: $partyName");
+    } catch (e) {
+      print("❌ Error fetching price list: $e");
+    }
+  }
+
+  void _showEditPriceDialog(int productId, String productName) {
+    TextEditingController priceController = TextEditingController(
+      text: partyPrices[productId]?.toString() ?? "",
     );
 
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text("Update Price for $product"),
+          title: Text("Edit Price for $productName"),
           content: TextField(
-            controller: rateController,
+            controller: priceController,
+            decoration: InputDecoration(labelText: "Enter New Price"),
             keyboardType: TextInputType.number,
-            decoration: InputDecoration(labelText: "Enter new price"),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: Text("Cancel")),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text("Cancel"),
+            ),
             ElevatedButton(
               onPressed: () {
-                int newRate = int.tryParse(rateController.text) ?? 0;
-                setState(() {
-                  priceList[party]?[product] = newRate;
-                });
-                _savePrice(party, product, newRate);
-                Navigator.pop(context);
+                _updatePrice(productId, priceController.text.trim());
               },
-              child: Text("Save"),
+              child: Text("Update"),
             ),
           ],
         );
@@ -80,12 +148,94 @@ class _PriceListScreenState extends State<PriceListScreen> {
     );
   }
 
-  void _filterProducts(String query) {
-    setState(() {
-      filteredProducts = productList
-          .where((product) => product.toLowerCase().contains(query.toLowerCase()))
-          .toList();
-    });
+  Future<void> _updatePrice(int productId, String newPrice) async {
+    if (newPrice.isEmpty) {
+      Fluttertoast.showToast(msg: "⚠️ Price cannot be empty!");
+      return;
+    }
+
+    int priceInt = int.tryParse(newPrice) ?? 0;
+    if (priceInt == 0) {
+      Fluttertoast.showToast(msg: "⚠️ Enter a valid price!");
+      return;
+    }
+    int? partyIdInt = int.tryParse(selectedPartyId ?? '');
+    if (partyIdInt == null) {
+      Fluttertoast.showToast(msg: "⚠️ Invalid party selection!");
+      return;
+    }
+    try {
+      if (partyPrices.containsKey(productId)) {
+        await supabase.from('pricelist').update({'price': priceInt}).match({
+          'party_id': partyIdInt,
+          'product_id': productId,
+        });
+      } else {
+        await supabase.from('pricelist').insert({
+          'party_id': partyIdInt,
+          'product_id': productId,
+          'price': priceInt,
+        });
+      }
+
+      Fluttertoast.showToast(msg: "✅ Price updated successfully!");
+      Navigator.pop(context);
+      _fetchPartyPrices(_partyController.text);
+    } catch (e) {
+      print("❌ Error updating price: $e");
+      Fluttertoast.showToast(msg: "⚠️ Error updating price.");
+    }
+  }
+
+  Widget _buildPartySearchField() {
+    return Column(
+      children: [
+        TextField(
+          controller: _partyController,
+          focusNode: _partyFocusNode,
+          decoration: InputDecoration(
+            labelText: "Search by Party Name",
+            prefixIcon: Icon(Icons.search),
+            border: OutlineInputBorder(),
+          ),
+          onTap: () {
+            if (!isUserTyping) {
+              setState(
+                () => partySuggestions.clear(),
+              ); // ✅ Prevent suggestions on tap
+            }
+          },
+          onChanged: (query) => _fetchPartySuggestions(query),
+        ),
+        if (partySuggestions.isNotEmpty)
+          Container(
+            margin: EdgeInsets.only(top: 5),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border.all(color: Colors.grey),
+              borderRadius: BorderRadius.circular(5),
+            ),
+            child: Column(
+              children:
+                  partySuggestions.map((party) {
+                    return ListTile(
+                      title: Text(party),
+                      onTap: () {
+                        setState(() {
+                          _partyController.text = party;
+                          partySuggestions
+                              .clear(); // ✅ Instantly clear suggestions
+                          isUserTyping = false;
+                        });
+                        _partyFocusNode.unfocus(); // ✅ Close keyboard instantly
+                        _fetchPartyPrices(party);
+                      },
+                    );
+                  }).toList(),
+            ),
+          ),
+      ],
+    );
   }
 
   @override
@@ -95,65 +245,62 @@ class _PriceListScreenState extends State<PriceListScreen> {
       body: Column(
         children: [
           Padding(
-            padding: EdgeInsets.all(8.0),
-            child: Autocomplete<String>(
-              optionsBuilder: (TextEditingValue textEditingValue) {
-                return partyList
-                    .where((party) => party.toLowerCase().contains(textEditingValue.text.toLowerCase()))
-                    .toList();
-              },
-              onSelected: (String value) {
-                setState(() {
-                  selectedParty = value;
-                });
-              },
-              fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-                partySearchController = controller;
-                return TextField(
-                  controller: controller,
-                  focusNode: focusNode,
-                  decoration: InputDecoration(
-                    labelText: "Search Party",
-                    prefixIcon: Icon(Icons.search),
-                    border: OutlineInputBorder(),
-                  ),
-                  onChanged: (value) => setState(() {}), // Update search results
-                );
-              },
-            ),
-          ),
-          Padding(
-            padding: EdgeInsets.all(8.0),
-            child: TextField(
-              controller: searchController,
-              decoration: InputDecoration(
-                labelText: "Search Product",
-                prefixIcon: Icon(Icons.search),
-                border: OutlineInputBorder(),
-              ),
-              onChanged: _filterProducts,
-            ),
+            padding: const EdgeInsets.all(8.0),
+            child: _buildPartySearchField(),
           ),
           Expanded(
-            child: selectedParty == null
-                ? Center(child: Text("Select a party to view rates"))
-                : ListView.builder(
-                    itemCount: filteredProducts.length,
-                    itemBuilder: (context, index) {
-                      String product = filteredProducts[index];
-                      int rate = priceList[selectedParty]?[product] ?? 0;
-                      return Card(
-                        child: ListTile(
-                          title: Text(product),
-                          subtitle: Text("Rate: ₹$rate"),
-                          trailing: IconButton(
-                            icon: Icon(Icons.edit, color: Colors.blue),
-                            onPressed: () => _updatePrice(product, selectedParty!),
+            child:
+                fullProductList.isEmpty
+                    ? Center(child: Text("No products found in database."))
+                    : ListView.builder(
+                      itemCount: fullProductList.length,
+                      itemBuilder: (context, index) {
+                        int productId = fullProductList[index]['id'];
+                        String productName =
+                            fullProductList[index]['product_name'];
+                        String priceText =
+                            partyPrices.containsKey(productId)
+                                ? "₹${partyPrices[productId]}"
+                                : "Not Set";
+
+                        return Card(
+                          margin: EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 6,
                           ),
-                        ),
-                      );
-                    },
-                  ),
+                          elevation: 3,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: ListTile(
+                            title: Text(
+                              productName,
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            subtitle: Text(
+                              priceText,
+                              style: TextStyle(
+                                color:
+                                    priceText == "Not Set"
+                                        ? Colors.red
+                                        : Colors.green,
+                                fontSize: 16,
+                              ),
+                            ),
+                            leading: Icon(
+                              Icons.price_change,
+                              color: Colors.blue,
+                            ),
+                            trailing: IconButton(
+                              icon: Icon(Icons.edit, color: Colors.orange),
+                              onPressed: () {
+                                _showEditPriceDialog(productId, productName);
+                              },
+                            ),
+                          ),
+                        );
+                      },
+                    ),
           ),
         ],
       ),

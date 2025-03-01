@@ -23,7 +23,7 @@ class DatabaseHelper {
     String path = join(documentsDirectory.path, 'sales_app.db');
     return await openDatabase(
       path,
-      version: 2,
+      version: 3,
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE parties (
@@ -38,16 +38,31 @@ class DatabaseHelper {
             product_rate INTEGER NOT NULL
           )
         ''');
+        await db.execute('''
+        CREATE TABLE pricelist (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          product_id INTEGER NOT NULL,
+          party_id INTEGER NOT NULL,
+          price INTEGER NOT NULL,
+          UNIQUE (product_id, party_id),
+          FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+          FOREIGN KEY (party_id) REFERENCES parties(id) ON DELETE CASCADE
+        )
+      ''');
       },
       onUpgrade: (db, oldVersion, newVersion) async {
-        if (oldVersion < 2) {
+        if (oldVersion < 3) {
           await db.execute('''
-            CREATE TABLE products (
-              id INTEGER PRIMARY KEY AUTOINCREMENT,
-              product_name TEXT NOT NULL,
-            product_rate INTEGER NOT NULL
-            )
-          ''');
+          CREATE TABLE pricelist (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            product_id INTEGER NOT NULL,
+            party_id INTEGER NOT NULL,
+            price INTEGER NOT NULL,
+            UNIQUE (product_id, party_id),
+            FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+            FOREIGN KEY (party_id) REFERENCES parties(id) ON DELETE CASCADE
+          )
+        ''');
         }
       },
     );
@@ -95,7 +110,7 @@ class DatabaseHelper {
     for (var product in products) {
       await db.insert('products', {
         'product_name': product['product_name'],
-        'product_rate':int.parse( product['product_rate'].toString()),
+        'product_rate': int.parse(product['product_rate'].toString()),
       });
     }
   }
