@@ -1,53 +1,113 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:fluttertoast/fluttertoast.dart';
+import 'db_help.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class ProductListScreen extends StatefulWidget {
-  
+  final bool isOnline;
+
+  const ProductListScreen({super.key, required this.isOnline});
+
   @override
   _ProductListScreenState createState() => _ProductListScreenState();
 }
 
 class _ProductListScreenState extends State<ProductListScreen> {
-  List<String> productList = [];
-  List<String> filteredList = [];
-  Map<String, int> productRates = {}; // Stores product rates
-  TextEditingController searchController = TextEditingController();
   final SupabaseClient supabase = Supabase.instance.client;
+  List<Map<String, dynamic>> productList = [];
+  List<Map<String, dynamic>> filteredList = [];
+  bool isOnline = true;
 
   @override
   void initState() {
     super.initState();
     _loadProducts();
-  }
+    _subscribeToRealtimeUpdates();
 
-  Future<void> _saveProducts() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-
-    await prefs.setStringList('product_list', productList);
-    await prefs.setString('product_rates', jsonEncode(productRates));
+    Connectivity().onConnectivityChanged.listen((connectivityResult) async {
+      setState(() {
+        isOnline = connectivityResult != ConnectivityResult.none;
+      });
+      if (isOnline) _syncFromSupabase();
+    });
   }
 
   Future<void> _loadProducts() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    List<String>? savedProducts = prefs.getStringList('product_list');
+    if (kIsWeb) {
+      await _syncFromSupabase();
+      return;
+    }
 
-    if (savedProducts != null) {
-      productList = savedProducts;
-      filteredList = List.from(productList);
-
-      String? encodedRates = prefs.getString('product_rates');
-      if (encodedRates != null) {
-        productRates = Map<String, int>.from(jsonDecode(encodedRates));
-      }
-
-      setState(() {});
+    await _loadCachedProducts();
+    if (isOnline) {
+      await _syncFromSupabase();
     }
   }
 
-  void _addProducts() {
-    TextEditingController productController = TextEditingController();
+  Future<void> _syncFromSupabase() async {
+    try {
+      final response = await supabase
+          .from('products')
+          .select('id, product_name, product_rate');
+      List<Map<String, dynamic>> cloudProducts =
+          List<Map<String, dynamic>>.from(response);
+
+      setState(() {
+        productList = cloudProducts;
+        filteredList = List.from(productList);
+      });
+
+      if (!kIsWeb) {
+        await DatabaseHelper.instance.cacheProducts(cloudProducts);
+      }
+    } catch (e) {
+      print("❌ Error syncing from Supabase: $e");
+    }
+  }
+
+  Future<void> _loadCachedProducts() async {
+    List<Map<String, dynamic>> cachedProducts =
+        await DatabaseHelper.instance.getCachedProducts();
+    setState(() {
+      productList = cachedProducts;
+      filteredList = List.from(productList);
+    });
+  }
+
+  void _subscribeToRealtimeUpdates() {
+    if (!isOnline) return;
+
+    supabase
+        .channel('public:products')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'products',
+          callback: (payload) {
+            print("🔄 Realtime update received: $payload");
+            _syncFromSupabase();
+          },
+        )
+        .subscribe();
+  }
+
+  void _filterProducts(String query) {
+    setState(() {
+      filteredList =
+          productList
+              .where(
+                (product) => product['product_name'].toLowerCase().contains(
+                  query.toLowerCase(),
+                ),
+              )
+              .toList();
+    });
+  }
+
+  void _showAddProductDialog() {
+    TextEditingController nameController = TextEditingController();
     TextEditingController rateController = TextEditingController();
 
     showDialog(
@@ -59,39 +119,28 @@ class _ProductListScreenState extends State<ProductListScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
-                controller: productController,
-                decoration: InputDecoration(hintText: "Enter Product Name"),
+                controller: nameController,
+                decoration: InputDecoration(hintText: "Product Name"),
               ),
-              SizedBox(height: 10),
               TextField(
                 controller: rateController,
+                decoration: InputDecoration(hintText: "Product Base Price"),
                 keyboardType: TextInputType.number,
-                decoration: InputDecoration(hintText: "Enter Product Rate"),
               ),
             ],
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context, false),
+              onPressed: () => Navigator.pop(context),
               child: Text("Cancel"),
             ),
             ElevatedButton(
               onPressed: () {
-                String newProduct = productController.text.trim();
-                int newRate = int.tryParse(rateController.text.trim()) ?? 0;
-
-                if (newProduct.isNotEmpty &&
-                    !productList.contains(newProduct)) {
-                  setState(() {
-                    productList.add(newProduct);
-                    filteredList.add(newProduct);
-                    productRates[newProduct] = newRate;
-                    _saveProducts();
-                  });
-                  Navigator.pop(context, true);
-                } else {
-                  Navigator.pop(context, false);
-                }
+                _addProduct(
+                  nameController.text.trim(),
+                  rateController.text.trim(),
+                  context,
+                );
               },
               child: Text("Add"),
             ),
@@ -101,13 +150,41 @@ class _ProductListScreenState extends State<ProductListScreen> {
     );
   }
 
-  void _editProduct(int index) async {
-    String oldProductName = filteredList[index];
-    TextEditingController productController = TextEditingController(
-      text: oldProductName,
-    );
+  Future<void> _addProduct(
+    String name,
+    String rate,
+    BuildContext dialogContext,
+  ) async {
+    if (name.isEmpty || rate.isEmpty) return;
+
+    try {
+      int sellRate = int.parse(rate); // ✅ Convert rate to integer
+
+      await supabase.from('products').insert({
+        'product_name': name,
+        'product_rate': sellRate,
+      });
+      Fluttertoast.showToast(msg: "✅ Product '$name' added successfully!");
+      Navigator.pop(dialogContext);
+      await _syncFromSupabase();
+    } catch (e) {
+      print("❌ Error adding product: $e");
+      Fluttertoast.showToast(
+        msg: "⚠️ Invalid price format. Enter whole numbers only.",
+      );
+    }
+  }
+
+  Future<void> _editProduct(int index) async {
+    if (!isOnline) {
+      Fluttertoast.showToast(msg: "📶 No Internet! Cannot edit product.");
+      return;
+    }
+
+    String oldName = filteredList[index]['product_name'];
+    TextEditingController nameController = TextEditingController(text: oldName);
     TextEditingController rateController = TextEditingController(
-      text: productRates[oldProductName]?.toString() ?? '0',
+      text: filteredList[index]['product_rate'].toString(),
     );
 
     showDialog(
@@ -118,53 +195,60 @@ class _ProductListScreenState extends State<ProductListScreen> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(
-                controller: productController,
-                decoration: InputDecoration(hintText: "Enter New Product Name"),
-              ),
-              SizedBox(height: 10),
+              TextField(controller: nameController),
               TextField(
                 controller: rateController,
                 keyboardType: TextInputType.number,
-                decoration: InputDecoration(hintText: "Enter New Rate"),
               ),
             ],
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context, false),
+              onPressed: () => Navigator.pop(context),
               child: Text("Cancel"),
             ),
             ElevatedButton(
               onPressed: () async {
-                String newProductName = productController.text.trim();
-                int newRate = int.tryParse(rateController.text.trim()) ?? 0;
+                String updatedName = nameController.text.trim();
+                String updatedRate = rateController.text.trim();
+                if (updatedName.isEmpty ||
+                    updatedRate.isEmpty ||
+                    updatedName == oldName)
+                  return;
 
-                if (newProductName.isNotEmpty) {
-                  setState(() {
-                    int originalIndex = productList.indexOf(oldProductName);
-                    productList[originalIndex] = newProductName;
-                    filteredList[index] = newProductName;
+                String updatedNameLower = updatedName.toLowerCase();
+                List<String> lowerCaseProducts =
+                    productList
+                        .map((p) => (p['product_name'] as String).toLowerCase())
+                        .toList();
 
-                    // Update product rates map
-                    productRates.remove(oldProductName);
-                    productRates[newProductName] = newRate.toInt();
-                  });
+                if (lowerCaseProducts.contains(updatedNameLower) &&
+                    updatedNameLower != oldName.toLowerCase()) {
+                  Fluttertoast.showToast(
+                    msg: "⚠️ Product '$updatedName' already exists!",
+                  );
+                  return;
+                }
 
-                  // Save updated values in SharedPreferences
-                  SharedPreferences prefs =
-                      await SharedPreferences.getInstance();
-                  await prefs.setStringList('product_list', productList);
-                  await prefs.remove('rate_$oldProductName'); // Remove old key
-                  await prefs.setInt(
-                    'rate_$newProductName',
-                    newRate,
-                  ); // Save as integer
-
-                  Navigator.pop(context, true);
+                try {
+                  await supabase
+                      .from('products')
+                      .update({
+                        'product_name': updatedName,
+                        'product_rate': updatedRate,
+                      })
+                      .eq('product_name', oldName);
+                  Fluttertoast.showToast(
+                    msg: "✅ Product updated successfully!",
+                  );
+                  await _syncFromSupabase();
+                  Navigator.pop(context);
+                } catch (e) {
+                  print("❌ Error updating product: $e");
+                  Fluttertoast.showToast(msg: "⚠️ Error updating product.");
                 }
               },
-              child: Text("Save"),
+              child: Text("Update"),
             ),
           ],
         );
@@ -172,33 +256,17 @@ class _ProductListScreenState extends State<ProductListScreen> {
     );
   }
 
-  void _filterProducts(String query) {
-    setState(() {
-      filteredList =
-          productList
-              .where(
-                (product) =>
-                    product.toLowerCase().contains(query.toLowerCase()),
-              )
-              .toList();
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text("Product List"),
-        actions: [IconButton(icon: Icon(Icons.add), onPressed: _addProducts)],
-      ),
+      appBar: AppBar(title: Text("Product List")),
       body: Column(
         children: [
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: TextField(
-              controller: searchController,
               decoration: InputDecoration(
-                labelText: "Search Products",
+                labelText: "Search Product",
                 prefixIcon: Icon(Icons.search),
                 border: OutlineInputBorder(),
               ),
@@ -206,34 +274,34 @@ class _ProductListScreenState extends State<ProductListScreen> {
             ),
           ),
           Expanded(
-            child:
-                filteredList.isEmpty
-                    ? Center(child: Text("No products available"))
-                    : ListView.builder(
-                      itemCount: filteredList.length,
-                      itemBuilder: (context, index) {
-                        return Card(
-                          margin: EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-                          child: ListTile(
-                            title: Text(filteredList[index]),
-                            subtitle: Text(
-                              "Rate: ₹${productRates[filteredList[index]]?.toStringAsFixed(2) ?? '0'}",
-                            ),
-                            leading: Icon(Icons.person, color: Colors.blue),
-                            trailing: IconButton(
-                              icon: Icon(Icons.edit, color: Colors.green),
-                              onPressed: () => _editProduct(index),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
+            child: ListView.builder(
+              itemCount: filteredList.length,
+              itemBuilder: (context, index) {
+                return ListTile(
+                  title: Text(filteredList[index]['product_name']),
+                  subtitle: Text(
+                    "Product Price: ₹${filteredList[index]['product_rate']}",
+                  ),
+                  trailing:
+                      isOnline
+                          ? IconButton(
+                            icon: Icon(Icons.edit),
+                            onPressed: () => _editProduct(index),
+                          )
+                          : Icon(Icons.lock, color: Colors.grey),
+                );
+              },
+            ),
           ),
         ],
       ),
+      floatingActionButton:
+          isOnline
+              ? FloatingActionButton(
+                child: Icon(Icons.add),
+                onPressed: _showAddProductDialog,
+              )
+              : null,
     );
   }
 }

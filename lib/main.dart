@@ -96,11 +96,11 @@ class _SalesEntryScreenState extends State<SalesEntryScreen> {
 
   Future<void> fetchDataFromSupabase() async {
     try {
-      final partyResponse = await supabase.from('party_list').select();
+      final partyResponse = await supabase.from('parties').select();
       final productResponse = await supabase.from('product_list').select();
       final priceResponse = await supabase.from('price_list').select();
 
-      await prefs.setString('party_list', partyResponse.toString());
+      await prefs.setString('parties', partyResponse.toString());
       await prefs.setString('product_list', productResponse.toString());
       await prefs.setString('price_list', priceResponse.toString());
 
@@ -115,7 +115,7 @@ class _SalesEntryScreenState extends State<SalesEntryScreen> {
   Future<void> _loadPartyList() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
-      partyList = prefs.getStringList('party_list') ?? [];
+      partyList = prefs.getStringList('parties') ?? [];
     });
   }
 
@@ -322,7 +322,7 @@ class _SalesEntryScreenState extends State<SalesEntryScreen> {
                 Navigator.pop(context);
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => ProductListScreen()),
+                  MaterialPageRoute(builder: (context) => ProductListScreen(isOnline: isOnline,)),
                 );
               },
             ),

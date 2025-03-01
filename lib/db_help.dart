@@ -23,7 +23,7 @@ class DatabaseHelper {
     String path = join(documentsDirectory.path, 'sales_app.db');
     return await openDatabase(
       path,
-      version: 1,
+      version: 2,
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE parties (
@@ -31,6 +31,24 @@ class DatabaseHelper {
             name TEXT NOT NULL
           )
         ''');
+        await db.execute('''
+          CREATE TABLE products (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            product_name TEXT NOT NULL,
+            product_rate INTEGER NOT NULL
+          )
+        ''');
+      },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 2) {
+          await db.execute('''
+            CREATE TABLE products (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              product_name TEXT NOT NULL,
+            product_rate INTEGER NOT NULL
+            )
+          ''');
+        }
       },
     );
   }
@@ -48,6 +66,37 @@ class DatabaseHelper {
     await db.delete('parties');
     for (var name in parties) {
       await db.insert('parties', {'name': name});
+    }
+  }
+
+  // ✅ Get cached products
+  Future<List<Map<String, dynamic>>> getCachedProducts() async {
+    if (kIsWeb) return []; // ✅ Web: No caching
+
+    Database db = await instance.database;
+    final result = await db.query('products', orderBy: 'product_name ASC');
+
+    return result
+        .map(
+          (row) => {
+            'product_name': row['product_name'],
+            'product_rate': row['product_rate'] as int,
+          },
+        )
+        .toList();
+  }
+
+  // ✅ Cache products
+  Future<void> cacheProducts(List<Map<String, dynamic>> products) async {
+    if (kIsWeb) return; // ✅ Web: No caching
+
+    Database db = await instance.database;
+    await db.delete('products');
+    for (var product in products) {
+      await db.insert('products', {
+        'product_name': product['product_name'],
+        'product_rate':int.parse( product['product_rate'].toString()),
+      });
     }
   }
 }
