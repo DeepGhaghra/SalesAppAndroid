@@ -64,12 +64,15 @@ class _SalesEntryScreenState extends State<SalesEntryScreen> {
   final SupabaseClient supabase = Supabase.instance.client;
   late SharedPreferences prefs;
   String lastSyncTime = 'Never';
+  bool isOnline = true;
 
   @override
   void initState() {
     super.initState();
     ConnectivityUtils.startInternetListening(() {
-      setState(() {}); // ✅ Refresh UI when internet restores
+      setState(() {
+        isOnline = true;
+      });
     });
     _loadLastDate();
     _loadPartyList();
@@ -308,7 +311,7 @@ class _SalesEntryScreenState extends State<SalesEntryScreen> {
                 Navigator.pop(context);
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => PartyListScreen()),
+                  MaterialPageRoute(builder: (context) => PartyListScreen(isOnline: isOnline,)),
                 );
               },
             ),

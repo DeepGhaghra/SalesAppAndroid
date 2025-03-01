@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:fluttertoast/fluttertoast.dart';
-import 'utils/sync_utils.dart'; // Import sync utils
+import 'utils/sync_utils.dart';
+import 'db_help.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class PartyListScreen extends StatefulWidget {
-  const PartyListScreen({super.key});
+  final bool isOnline;
+
+  const PartyListScreen({super.key, required this.isOnline});
 
   @override
   _PartyListScreenState createState() => _PartyListScreenState();
@@ -16,306 +19,212 @@ class _PartyListScreenState extends State<PartyListScreen> {
   final SupabaseClient supabase = Supabase.instance.client;
   List<String> partyList = [];
   List<String> filteredList = [];
-  List<String> unsyncedParties = [];
   TextEditingController searchController = TextEditingController();
+  bool isOnline = true;
 
   @override
   void initState() {
     super.initState();
     _loadParties();
+    _subscribeToRealtimeUpdates(); // ✅ Listen for live updates
     Connectivity().onConnectivityChanged.listen((connectivityResult) async {
-      if (connectivityResult != ConnectivityResult.none) {
-        print("📡 Internet restored! Retrying sync...");
-        await _syncUnsyncedParties();
-        await _syncFromSupabase();
-        await _syncOfflineUpdates();
-      }
+      setState(() {
+        isOnline = connectivityResult != ConnectivityResult.none;
+      });
+      if (isOnline) _syncFromSupabase();
     });
   }
 
   Future<void> _loadParties() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    List<String>? savedParties = prefs.getStringList('party_list');
-    List<String>? savedUnsyncedParties = prefs.getStringList(
-      'unsynced_parties',
-    );
+    print("🔄 _loadParties() started...");
 
-    if (savedParties != null) {
-      savedParties.sort(
-        (a, b) => a.toLowerCase().compareTo(b.toLowerCase()),
-      ); // Sort before setting state
+    if (kIsWeb) {
+      print("🌐 Web detected: Fetching from Supabase...");
 
-      setState(() {
-        partyList = savedParties;
-        filteredList = List.from(partyList);
-      });
-    }
-
-    if (savedUnsyncedParties != null) {
-      setState(() {
-        unsyncedParties = savedUnsyncedParties;
-      });
-      print("Loaded unsynced parties: $unsyncedParties");
-    }
-
-    if (await ConnectivityUtils.hasInternet()) {
-      await _syncUnsyncedParties();
+      // Web: Fetch directly from Supabase (no caching)
       await _syncFromSupabase();
-      await _syncOfflineUpdates();
+      return;
+    }
+
+    print("📲 Mobile detected: Trying to load cached data first...");
+    await _loadCachedParties(); // ✅ Ensure it runs before fetching online
+    if (isOnline) {
+      print("✅ Online detected: Fetching from Supabase...");
+      await _syncFromSupabase();
+    } else {
+      print("⚠️ Offline: Using cached data.");
     }
   }
 
-  Future<void> _saveParties() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList('party_list', partyList);
-  }
+  void _subscribeToRealtimeUpdates() {
+    if (!isOnline) return; // ✅ Only subscribe when online
 
-  Future<void> _saveUnsyncedParties() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList('unsynced_parties', unsyncedParties);
-    print("Unsynced parties saved locally: $unsyncedParties");
-  }
+    supabase
+        .channel('public:parties')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'parties',
+          callback: (payload) {
+            print("🔄 Realtime update received: $payload");
 
-  Future<void> _syncOfflineUpdates() async {
-    final prefs = await SharedPreferences.getInstance();
-    final List<String> offlineUpdates =
-        prefs.getStringList('offlineUpdates') ?? [];
-
-    if (offlineUpdates.isEmpty) return;
-
-    final List<String> successfulUpdates = [];
-
-    try {
-      for (final update in offlineUpdates) {
-        final parts = update.split('=>');
-        if (parts.length != 2) continue;
-
-        final oldName = parts[0];
-        final newName = parts[1];
-
-        try {
-          // Get party ID
-          final response =
-              await supabase
-                  .from('parties')
-                  .select('id')
-                  .ilike('partyname', oldName)
-                  .maybeSingle();
-
-          if (response != null) {
-            await supabase
-                .from('parties')
-                .update({'partyname': newName})
-                .eq('id', response['id']);
-
-            successfulUpdates.add(update);
-            print("✅ Updated: $oldName → $newName");
-          }
-        } catch (e) {
-          print("🔴 Failed update $oldName → $newName: ${e.toString()}");
-        }
-      }
-
-      // Remove successful updates
-      offlineUpdates.removeWhere((u) => successfulUpdates.contains(u));
-      await prefs.setStringList('offlineUpdates', offlineUpdates);
-    } catch (e) {
-      print("🛑 Critical update error: ${e.toString()}");
-    }
+            // ✅ Re-fetch parties when a change is detected
+            _syncFromSupabase();
+          },
+        )
+        .subscribe();
   }
 
   Future<void> _syncFromSupabase() async {
-    if (!await ConnectivityUtils.hasInternet()) {
-      print("❌ No internet, skipping Supabase sync.");
-      return;
-    }
     try {
-      final response = await supabase.from('parties').select('id, partyname');
+      final response = await supabase.from('parties').select('partyname');
       List<String> cloudParties =
           response.map((row) => row['partyname'] as String).toList();
       cloudParties.sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
-      if (mounted) {
-        setState(() {
-          partyList = cloudParties;
-          filteredList = List.from(partyList);
-        });
+
+      setState(() {
+        partyList = cloudParties;
+        filteredList = List.from(partyList);
+      });
+
+      if (!kIsWeb) {
+        await DatabaseHelper.instance.cacheParties(partyList);
       }
-      await _saveParties();
-      print("✅ Synced latest party list from Supabase");
     } catch (e) {
       print("Error syncing from Supabase: $e");
     }
   }
 
-  Future<void> _syncUnsyncedParties() async {
-    if (unsyncedParties.isEmpty) return;
-    print("Sync function called...");
-    final prefs = await SharedPreferences.getInstance();
-    final List<String> successfullySynced = [];
-    try {
-      // Check if all unsynced parties exist in Supabase
-      for (final party in unsyncedParties) {
-        try {
-          final existing =
-              await supabase
-                  .from('parties')
-                  .select('partyname')
-                  .ilike('partyname', party)
-                  .maybeSingle();
+  Future<void> _loadCachedParties() async {
+    if (kIsWeb) return; // Web fetches directly from Supabase
+    print("🔍 Loading cached parties...");
 
-          if (existing == null) {
-            await supabase.from('parties').insert({'partyname': party});
-            successfullySynced.add(party);
-            print("✅ Synced: $party");
-          } else {
-            print("⚠️ Skipped existing: $party");
-          }
-        } catch (e) {
-          print("🔴 Failed to sync $party: ${e.toString()}");
-        }
-      }
-      print("Unsynced Parties Before Sync: $unsyncedParties");
+    List<String> cachedParties =
+        await DatabaseHelper.instance.getCachedParties();
+    print("✅ Cached Parties Retrieved: $cachedParties");
 
-      // Clear unsynced parties list after successful sync
-      if (mounted) {
-        setState(() {
-          unsyncedParties.removeWhere((p) => successfullySynced.contains(p));
-        });
-      }
-      await prefs.setStringList('unsynced_parties', unsyncedParties);
+    setState(() {
+      partyList = cachedParties;
+      filteredList = List.from(partyList);
+    });
 
-      print("Successfully synced parties to Supabase.");
-      print(
-        "Unsynced Parties after sync: ${prefs.getStringList('unsynced_parties')}",
-      );
-      await _syncFromSupabase();
-    } catch (e) {
-      print("Error syncing pending parties to Supabase: $e");
+    if (partyList.isEmpty) {
+      print("⚠️ No cached data found!");
+    } else {
+      print("📌 Cached data loaded successfully.");
     }
   }
 
-  /*void _addParties() {
-    TextEditingController partyController = TextEditingController();
+  Future<void> _addParty(String newParty, BuildContext dialogContext) async {
+    newParty = newParty.trim();
+    if (newParty.isEmpty) return;
+    // ✅ Convert all names to lowercase before checking for duplicates
+    String newPartyLower = newParty.toLowerCase();
+    List<String> lowerCaseParties =
+        partyList.map((p) => p.toLowerCase()).toList();
+
+    if (lowerCaseParties.contains(newPartyLower)) {
+      Fluttertoast.showToast(msg: "⚠️ Party '$newParty' already exists!");
+      return;
+    }
+    if (!widget.isOnline) {
+      Fluttertoast.showToast(msg: "📶 No Internet! Cannot add party.");
+      return;
+    }
+
+    try {
+      await supabase.from('parties').insert({'partyname': newParty});
+      setState(() {
+        partyList.add(newParty);
+        filteredList.add(newParty);
+        partyList.sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+      });
+
+      Fluttertoast.showToast(msg: "✅ Party '$newParty' added successfully!");
+      Navigator.pop(dialogContext); // ✅ Close dialog only on successful add
+      await _syncFromSupabase();
+    } catch (e) {
+      Fluttertoast.showToast(msg: "Error adding party.");
+    }
+  }
+
+  Future<void> _editParty(int index) async {
+    if (!widget.isOnline) {
+      Fluttertoast.showToast(msg: "📶 No Internet! Cannot edit party.");
+      return;
+    }
+
+    String oldName = filteredList[index];
+    TextEditingController partyController = TextEditingController(
+      text: oldName,
+    );
 
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text("Add New Party"),
-          content: TextField(
-            controller: partyController,
-            decoration: InputDecoration(hintText: "Enter Party Name"),
-          ),
+          title: Text("Edit Party"),
+          content: TextField(controller: partyController),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context, false),
+              onPressed: () => Navigator.pop(context),
               child: Text("Cancel"),
             ),
             ElevatedButton(
               onPressed: () async {
-                String newParty = partyController.text.trim();
-                if (newParty.isNotEmpty && !partyList.contains(newParty)) {
-                  setState(() {
-                    partyList.add(newParty);
-                    filteredList.add(newParty);
-                    _saveParties();
-                  });
-                  // Sync new party to Supabase
-                  await supabase.from('parties').insert({'name': newParty});
+                String updatedName = partyController.text.trim();
+                if (updatedName.isEmpty || updatedName == oldName) return;
+                // ✅ Case-insensitive check
+                String updatedNameLower = updatedName.toLowerCase();
+                List<String> lowerCaseParties =
+                    partyList.map((p) => p.toLowerCase()).toList();
 
-                  Navigator.pop(context, true);
-                } else {
-                  Navigator.pop(context, false);
+                if (lowerCaseParties.contains(updatedNameLower) &&
+                    updatedNameLower != oldName.toLowerCase()) {
+                  Fluttertoast.showToast(
+                    msg: "⚠️ Party '$updatedName' already exists!",
+                  );
+                  return;
+                }
+                try {
+                  await supabase
+                      .from('parties')
+                      .update({'partyname': updatedName})
+                      .eq('partyname', oldName);
+
+                  setState(() {
+                    partyList[index] = updatedName;
+                    filteredList[index] = updatedName;
+                    partyList.sort(
+                      (a, b) => a.toLowerCase().compareTo(b.toLowerCase()),
+                    );
+                  });
+
+                  Fluttertoast.showToast(msg: "✅ Party updated successfully!");
+                  await _syncFromSupabase();
+                  Navigator.pop(context);
+                } catch (e) {
+                  print("Error updating party: $e");
+                  Fluttertoast.showToast(msg: "Error updating party.");
                 }
               },
-              child: Text("Add"),
+              child: Text("Update"),
             ),
           ],
         );
       },
     );
-  }*/
-  /// Save parties locally and sync to cloud
-  Future<void> _addParty(String newParty) async {
-    newParty = newParty.trim();
-    if (newParty.isEmpty) return;
+  }
 
-    String newPartyLower = newParty.toLowerCase();
-
-    bool isDuplicate = partyList.any(
-      (party) => party.toLowerCase().trim() == newPartyLower,
-    );
-    if (isDuplicate) {
-      _showErrorDialog("Party '$newParty' already exists.");
-      return;
-    }
-    await Future.delayed(
-      Duration(milliseconds: 50),
-    ); // ✅ Small delay to prevent frame issues
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      setState(() {
-        partyList.add(newParty);
-        filteredList.add(newParty);
-        partyList.sort(
-          (a, b) => a.toLowerCase().compareTo(b.toLowerCase()),
-        ); // Sort alphabetically
-        filteredList.sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
-      });
+  void _filterParties(String query) {
+    setState(() {
+      filteredList =
+          partyList
+              .where(
+                (party) => party.toLowerCase().contains(query.toLowerCase()),
+              )
+              .toList();
     });
-
-    await _saveParties();
-    try {
-      if (await ConnectivityUtils.hasInternet()) {
-        final existingParty =
-            await supabase
-                .from('parties')
-                .select('id')
-                .ilike('partyname', newParty)
-                .maybeSingle();
-
-        if (existingParty != null) {
-          _showErrorDialog("Party '$newParty' already exists online.");
-          return;
-        }
-        await supabase.from('parties').insert({'partyname': newParty});
-        showToast("✅ Party '$newParty' added successfully!");
-      } else {
-        setState(() {
-          unsyncedParties.add(newParty);
-        });
-        await _saveUnsyncedParties();
-        showToast("📶 No Internet! '$newParty' will sync when online.");
-      }
-    } catch (e) {
-      _showErrorDialog("Error adding party: ${e.toString()}");
-    }
-  }
-
-  void showToast(String message) {
-    Fluttertoast.showToast(
-      msg: message,
-      toastLength: Toast.LENGTH_SHORT, // Disappears automatically
-      gravity: ToastGravity.BOTTOM, // Appears at the bottom
-      backgroundColor: Colors.black,
-      textColor: Colors.white,
-    );
-  }
-
-  void _showErrorDialog(String message) {
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: Text("Error", style: TextStyle(color: Colors.red)),
-            content: Text(message),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text("OK"),
-              ),
-            ],
-          ),
-    );
   }
 
   void _showAddPartyDialog() {
@@ -337,9 +246,7 @@ class _PartyListScreenState extends State<PartyListScreen> {
             ),
             ElevatedButton(
               onPressed: () {
-                String newParty = partyController.text.trim();
-                _addParty(newParty);
-                Navigator.pop(context);
+                _addParty(partyController.text.trim(), context);
               },
               child: Text("Add"),
             ),
@@ -349,149 +256,33 @@ class _PartyListScreenState extends State<PartyListScreen> {
     );
   }
 
-  void _editParty(int index) {
-    int originalIndex = partyList.indexOf(filteredList[index]);
-    String oldPartyName = filteredList[index];
-    TextEditingController partyController = TextEditingController(
-      text: oldPartyName,
-    );
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text("Edit Party"),
-          content: TextField(
-            controller: partyController,
-            decoration: InputDecoration(hintText: "Enter New Party Name"),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: Text("Cancel"),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                String updatedParty = partyController.text.trim();
-                String updatedPartyLower = updatedParty.toLowerCase();
-
-                if (updatedParty == oldPartyName) {
-                  showToast("✅ Party name is unchanged.");
-                  Navigator.pop(context, false);
-                  return;
-                }
-
-                bool isDuplicate = partyList.any(
-                  (party) =>
-                      party.toLowerCase().trim() == updatedPartyLower &&
-                      party != oldPartyName,
-                );
-                if (isDuplicate) {
-                  _showErrorDialog("Party '$updatedParty' already exists.");
-                  return;
-                }
-
-                try {
-                  if (await ConnectivityUtils.hasInternet()) {
-                    final existingParty =
-                        await supabase
-                            .from('parties')
-                            .select('id,partyname')
-                            .ilike('partyname', updatedParty)
-                            .neq('partyname', oldPartyName)
-                            .maybeSingle();
-
-                    if (existingParty != null) {
-                      _showErrorDialog(
-                        "Party '$updatedParty' already exists online.",
-                      );
-                      return;
-                    }
-
-                    final response =
-                        await supabase
-                            .from('parties')
-                            .select('id')
-                            .ilike('partyname', oldPartyName)
-                            .maybeSingle();
-
-                    if (response == null) {
-                      _showErrorDialog("Error: Party not found.");
-                      return;
-                    }
-
-                    int partyId = response['id'];
-                    await supabase
-                        .from('parties')
-                        .update({'partyname': updatedParty})
-                        .eq('id', partyId);
-                    showToast(
-                      "✅ Party name '$oldPartyName' updated to '$updatedParty' successfully!",
-                    );
-                  } else {
-                    final prefs = await SharedPreferences.getInstance();
-                    List<String> offlineUpdates =
-                        prefs.getStringList('offlineUpdates') ?? [];
-                    offlineUpdates.add("$oldPartyName=>$updatedParty");
-                    await prefs.setStringList('offlineUpdates', offlineUpdates);
-                    showToast(
-                      "📶 Offline! '$updatedParty' update will sync when online.",
-                    );
-                  }
-
-                  // Update UI immediately
-                  if (mounted) {
-                    setState(() {
-                      partyList[originalIndex] = updatedParty;
-                      filteredList[index] = updatedParty;
-                      partyList.sort(
-                        (a, b) => a.toLowerCase().compareTo(b.toLowerCase()),
-                      );
-                      filteredList.sort(
-                        (a, b) => a.toLowerCase().compareTo(b.toLowerCase()),
-                      );
-                    });
-                  }
-
-                  await _saveParties();
-                  Navigator.pop(context, true);
-                } catch (e) {
-                  _showErrorDialog("Error updating party: ${e.toString()}");
-                }
-              },
-              child: Text("Update"),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  void _filterParties(String query) {
-    setState(() {
-      filteredList =
-          partyList
-              .where(
-                (party) => party.toLowerCase().contains(query.toLowerCase()),
-              )
-              .toList();
-      filteredList.sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text("Party List"),
-        actions: [
-          IconButton(icon: Icon(Icons.add), onPressed: _showAddPartyDialog),
-        ],
-      ),
+      appBar: AppBar(title: Text("Party List")),
       body: Column(
         children: [
+          if (!isOnline) // 🔴 Show a message when offline
+            Container(
+              padding: EdgeInsets.all(10),
+              color: Colors.redAccent,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.wifi_off, color: Colors.white),
+                  SizedBox(width: 10),
+                  Text(
+                    "You are offline! Showing cached data.",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           Padding(
-            padding: const EdgeInsets.all(8.0),
+            padding: const EdgeInsets.all(8),
             child: TextField(
               controller: searchController,
               decoration: InputDecoration(
@@ -504,8 +295,18 @@ class _PartyListScreenState extends State<PartyListScreen> {
           ),
           Expanded(
             child:
-                filteredList.isEmpty
-                    ? Center(child: Text("No parties available"))
+                (partyList.isEmpty && !isOnline && !kIsWeb)
+                    ? Center(
+                      child: Text(
+                        "You are offline. No cached data available.",
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    )
                     : ListView.builder(
                       itemCount: filteredList.length,
                       itemBuilder: (context, index) {
@@ -517,10 +318,19 @@ class _PartyListScreenState extends State<PartyListScreen> {
                           child: ListTile(
                             title: Text(filteredList[index]),
                             leading: Icon(Icons.person, color: Colors.blue),
-                            trailing: IconButton(
-                              icon: Icon(Icons.edit, color: Colors.green),
-                              onPressed: () => _editParty(index),
-                            ),
+                            trailing:
+                                widget.isOnline
+                                    ? IconButton(
+                                      icon: Icon(
+                                        Icons.edit,
+                                        color: Colors.green,
+                                      ),
+                                      onPressed: () => _editParty(index),
+                                    )
+                                    : Icon(
+                                      Icons.lock,
+                                      color: Colors.grey,
+                                    ), // 🔒 Disabled when offline
                           ),
                         );
                       },
@@ -528,6 +338,13 @@ class _PartyListScreenState extends State<PartyListScreen> {
           ),
         ],
       ),
+      floatingActionButton:
+          widget.isOnline
+              ? FloatingActionButton(
+                child: Icon(Icons.add),
+                onPressed: _showAddPartyDialog,
+              )
+              : null, // 🔒 Hide add button when offline
     );
   }
 }
