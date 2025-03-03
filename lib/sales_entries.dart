@@ -29,6 +29,7 @@ class _SalesEntryScreenState extends State<SalesEntryScreen> {
   Map<String, int> productRates = {}; // product -> base rate
   Map<String, String> partyMap = {}; // partyName -> partyID
   Map<String, String> productMap = {}; // productName -> productID
+  Map<String, Color> rateFieldColor = {}; //rate field colour change
 
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final SupabaseClient supabase = Supabase.instance.client;
@@ -98,14 +99,12 @@ class _SalesEntryScreenState extends State<SalesEntryScreen> {
 
       if (partySpecificRate != null) {
         rates[product] = partySpecificRate;
+        rateFieldColor[product] = Colors.white; // Reset if custom rate
       } else if (baseRate != null) {
         rates[product] = baseRate;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Using base rate for $product: ₹$baseRate"),
-            backgroundColor: Colors.orangeAccent,
-          ),
-        );
+        rateControllers[product]!.text = baseRate.toString();
+        rateFieldColor[product] = Colors.orange.shade100; // Change field color
+        Fluttertoast.showToast(msg: "Orange colour Rates are set by you");
       } else {
         rates[product] = 0;
       }
@@ -327,9 +326,12 @@ class _SalesEntryScreenState extends State<SalesEntryScreen> {
                               width: 80,
                               child: TextFormField(
                                 controller: rateControllers[productName],
-                                decoration: const InputDecoration(
+                                decoration: InputDecoration(
                                   labelText: "Rate",
                                   filled: true,
+                                  fillColor:
+                                      rateFieldColor[productName] ??
+                                      Colors.white, // Apply color
                                 ),
                                 keyboardType: TextInputType.number,
                                 onChanged: (_) => _calculateAmount(productName),
