@@ -34,11 +34,15 @@ class _SalesEntryScreenState extends State<SalesEntryScreen> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final SupabaseClient supabase = Supabase.instance.client;
   final GlobalKey<FormFieldState> multiSelectKey = GlobalKey<FormFieldState>();
-
+  List<Map<String, dynamic>> recentSales = [];
+  int currentPage = 1;
+  int pageSize = 10;
+  bool isLoading = false;
   @override
   void initState() {
     super.initState();
     _loadData();
+    _fetchRecentSales();
     _generateInvoiceNo();
   }
 
@@ -90,21 +94,23 @@ class _SalesEntryScreenState extends State<SalesEntryScreen> {
   void _updateRate(String product) {
     setState(() {
       String? productId = productMap[product]; // Ensure correct ID
-      print("Product: $product, Product ID: $productId");
-      print("Product Rates Map: $productRates"); // Print entire map
 
       int? partySpecificRate = priceList[selectedParty]?[productId];
       int? baseRate = productRates[product];
-      print("Party-Specific Rate: $partySpecificRate, Base Rate: $baseRate");
 
       if (partySpecificRate != null) {
         rates[product] = partySpecificRate;
         rateFieldColor[product] = Colors.white; // Reset if custom rate
+        // Fluttertoast.showToast(msg: "Enter PArty's rate");
       } else if (baseRate != null) {
         rates[product] = baseRate;
         rateControllers[product]!.text = baseRate.toString();
-        rateFieldColor[product] = Colors.orange.shade100; // Change field color
-        Fluttertoast.showToast(msg: "Orange colour Rates are set by you");
+        rateFieldColor[product] = const Color.fromARGB(
+          255,
+          220,
+          237,
+          246,
+        ); // Change field color
       } else {
         rates[product] = 0;
       }
@@ -212,6 +218,43 @@ class _SalesEntryScreenState extends State<SalesEntryScreen> {
         ),
       );
     }
+  }
+
+  void _fetchRecentSales() async {
+    setState(() => isLoading = true);
+
+    final response = await supabase
+        .from('sales_entries')
+        .select(
+          'id, date, parties!inner(partyname), products!inner(product_name), quantity, rate',
+        )
+        .order('date', ascending: false)
+        .range((currentPage - 1) * pageSize, currentPage * pageSize - 1);
+    print(
+      'Fetching entries from ${(currentPage - 1) * pageSize} to ${currentPage * pageSize - 1}',
+    );
+    print("Raw Response: $response"); // Debugging the actual response
+
+    setState(() {
+      recentSales = List.from(response);
+      isLoading = false;
+      print("recentSales length: ${recentSales.length}");
+    });
+  }
+
+  void _editEntry(int entryId) async {
+    var entry =
+        await supabase
+            .from('sales_entries')
+            .select('*')
+            .eq('id', entryId)
+            .single();
+
+    // Navigate to an Edit Page (or open a Dialog)
+    /* Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => EditEntryScreen(entry: entry)),
+    );*/
   }
 
   @override
@@ -366,7 +409,6 @@ class _SalesEntryScreenState extends State<SalesEntryScreen> {
                       );
                     }).toList(),
               ),
-
               const SizedBox(height: 20),
 
               ElevatedButton(

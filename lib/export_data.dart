@@ -5,9 +5,10 @@ import 'dart:io';
 import 'package:intl/intl.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ExportDataScreen extends StatefulWidget {
-    const ExportDataScreen({super.key});
+  const ExportDataScreen({super.key});
 
   @override
   _ExportDataScreenState createState() => _ExportDataScreenState();
@@ -17,35 +18,50 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
   DateTime? startDate;
   DateTime? endDate;
   List<Map<String, dynamic>> salesEntries = [];
+  final supabase = Supabase.instance.client;
 
   @override
   void initState() {
     super.initState();
-    _loadSalesData();
   }
 
-  Future<void> _loadSalesData() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? salesDataString = prefs.getString('sales_entries');
-
-    if (salesDataString != null) {
-      List<String> dataList = salesDataString.split('|');
-      List<Map<String, dynamic>> tempEntries = [];
-
-      for (String data in dataList) {
-        List<String> values = data.split(',');
-        tempEntries.add({
-          'Date': values[0],
-          'Invoice No': int.parse(values[1]),
-          'Party': values[2],
-          'Product': values[3],
-          'Quantity': int.parse(values[4]),
-        });
-      }
+  Future<void> _fetchSalesData() async {
+    if (startDate == null || endDate == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Please select a date range first')),
+      );
+      return;
+    }
+    try {
+      final response = await supabase
+          .from('sales_entries')
+          .select(
+            'date, invoiceno, quantity, rate, amount, parties (partyname), products (product_name)',
+          )
+          .gte('date', DateFormat('dd-MM-yyyy').format(startDate!))
+          .lte('date', DateFormat('dd-MM-yyyy').format(endDate!));
 
       setState(() {
-        salesEntries = tempEntries;
+        salesEntries =
+            response
+                .map(
+                  (entry) => {
+                    'Date': entry['date'],
+                    'Invoice No': entry['invoiceno'],
+                    'Party': entry['parties']['partyname'],
+                    'Product': entry['products']['product_name'],
+                    'Quantity': entry['quantity'],
+                    'Rate': entry['rate'],
+                    'Amount': entry['amount'],
+                  },
+                )
+                .toList();
       });
+    } catch (e) {
+      print('Error fetching sales data: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to fetch data from Supabase')),
+      );
     }
   }
 
@@ -67,6 +83,7 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
         startDate = picked.start;
         endDate = picked.end;
       });
+      _fetchSalesData();
     }
   }
 
@@ -77,20 +94,27 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
       );
       return;
     }
+    if (salesEntries.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No sales data available for export')),
+      );
+      return;
+    }
 
     // Ask user where to save the file
     String? selectedDirectory = await FilePicker.platform.getDirectoryPath();
 
     if (selectedDirectory == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Export canceled or permission denied')),
+        SnackBar(content: Text('Export cancelled or permission denied')),
       );
       return;
     }
- // ✅ Ensure storage permission
-  if (!(await Permission.manageExternalStorage.isGranted)) {
-    await Permission.manageExternalStorage.request();
-  }
+
+    // ✅ Ensure storage permission
+    if (!(await Permission.manageExternalStorage.isGranted)) {
+      await Permission.manageExternalStorage.request();
+    }
     // Create Excel file
     DateFormat formatter = DateFormat('dd-MM-yyyy');
     String startDateStr = formatter.format(startDate!);
@@ -98,28 +122,34 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
 
     var excel = Excel.createExcel();
     Sheet sheet = excel['Sheet1'];
-    sheet.appendRow(['Date', 'Inv No', 'Party Name', 'Product Name', 'Qty','Rate','Amount',
-    'Party Type','Type','Place Of Supply','Party Type']);
+    sheet.appendRow([
+      'Date',
+      'Inv No',
+      'Party Name',
+      'Product Name',
+      'Qty',
+      'Rate',
+      'Amount',
+      'Party Type',
+      'Type',
+      'Place Of Supply',
+      'Registration Type',
+    ]);
 
     for (var entry in salesEntries) {
-      DateTime entryDate = DateTime.parse(entry['Date']);
-      if (entryDate.isAtSameMomentAs(startDate!) ||
-          (entryDate.isAfter(startDate!) && entryDate.isBefore(endDate!)) ||
-          entryDate.isAtSameMomentAs(endDate!)) {
-        sheet.appendRow([
-          entry['Date'],
-          entry['Invoice No'],
-          entry['Party'],
-          entry['Product'],
-          (int.tryParse(entry['qty']) ?? 0),
-          (int.tryParse(entry['rate'].toString()) ?? 0),
-          (int.tryParse(entry['amount'].toString()) ?? 0),
-          'Sundry Debtors',
-          'Debit',
-          'MAHARASHTRA',
-          'Consumer'
-        ]);
-      }
+      sheet.appendRow([
+        entry['Date'],
+        entry['Invoice No'],
+        entry['Party'],
+        entry['Product'],
+        entry['Quantity'],
+        entry['Rate'],
+        entry['Amount'],
+        'Sundry Debtors',
+        'Debit',
+        'MAHARASHTRA',
+        'Consumer',
+      ]);
     }
     // Encode Excel file
     var fileBytes = excel.encode();
@@ -129,24 +159,23 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
       ).showSnackBar(SnackBar(content: Text('Failed to generate Excel file')));
       return;
     }
-    
-      // Save file in selected location
-      String filePath =
-          "$selectedDirectory/sales_data_${startDateStr}_to_${endDateStr}.xlsx";
-      File file = File(filePath);
-      try {    await file.writeAsBytes(excel.encode()!);
 
+    // Save file in selected location
+    String filePath =
+        "$selectedDirectory/sales_${startDateStr}_to_${endDateStr}.xlsx";
+    File file = File(filePath);
+    try {
+      await file.writeAsBytes(excel.encode()!);
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Exported successfully to $filePath')),
       );
-          print("File saved at: $filePath");
-
+      print("File saved at: $filePath");
     } catch (e) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Error saving file: $e')),
-    );
-    print("Error: $e");
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error saving file: $e')));
+      print("Error: $e");
     }
   }
 
