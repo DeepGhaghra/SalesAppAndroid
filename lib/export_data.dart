@@ -18,6 +18,8 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
   DateTime? startDate;
   DateTime? endDate;
   List<Map<String, dynamic>> salesEntries = [];
+  Map<String, int> productSummary = {};
+
   final supabase = Supabase.instance.client;
 
   @override
@@ -39,23 +41,29 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
             'date, invoiceno, quantity, rate, amount, parties (partyname), products (product_name)',
           )
           .gte('date', DateFormat('dd-MM-yyyy').format(startDate!))
-          .lte('date', DateFormat('dd-MM-yyyy').format(endDate!));
+          .lte('date', DateFormat('dd-MM-yyyy').format(endDate!))
+          .order('date', ascending: true);
+      Map<String, int> tempProductSummary = {};
 
       setState(() {
         salesEntries =
-            response
-                .map(
-                  (entry) => {
-                    'Date': entry['date'],
-                    'Invoice No': entry['invoiceno'],
-                    'Party': entry['parties']['partyname'],
-                    'Product': entry['products']['product_name'],
-                    'Quantity': entry['quantity'],
-                    'Rate': entry['rate'],
-                    'Amount': entry['amount'],
-                  },
-                )
-                .toList();
+            response.map((entry) {
+              String productName = entry['products']['product_name'];
+              int quantity = entry['quantity'] ?? 0;
+
+              tempProductSummary[productName] =
+                  (tempProductSummary[productName] ?? 0) + quantity;
+              return {
+                'Date': entry['date'],
+                'Invoice No': entry['invoiceno'],
+                'Party': entry['parties']['partyname'],
+                'Product': productName,
+                'Quantity': quantity,
+                'Rate': entry['rate'],
+                'Amount': entry['amount'],
+              };
+            }).toList();
+        productSummary = tempProductSummary;
       });
     } catch (e) {
       print('Error fetching sales data: $e');
@@ -191,12 +199,65 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
               title: Text(
                 startDate == null || endDate == null
                     ? 'Select Date Range'
-                    : 'From ${DateFormat('dd-MM-yyyy').format(startDate!)} to ${DateFormat('dd-MM-yyyy').format(endDate!)}',
+                    : 'Selected: ${DateFormat('dd-MM-yyyy').format(startDate!)} to ${DateFormat('dd-MM-yyyy').format(endDate!)}',
+                style: TextStyle(fontWeight: FontWeight.bold),
               ),
               trailing: Icon(Icons.calendar_today),
               onTap: _selectDateRange,
             ),
             SizedBox(height: 10),
+
+            // Product Summary
+            if (productSummary.isNotEmpty) ...[
+              Text(
+                'Product Summary :',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: 5),
+              Card(
+                color:
+                    Colors.grey[100], // Light background for better readability
+                elevation: 2, // Slight shadow for a lifted effect
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Padding(
+                  padding: EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children:
+                        productSummary.entries
+                            .map(
+                              (entry) => Padding(
+                                padding: EdgeInsets.symmetric(vertical: 4),
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      entry.key,
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    Text(
+                                      entry.value.toString(),
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            )
+                            .toList(),
+                  ),
+                ),
+              ),
+              SizedBox(height: 10),
+            ],
             ElevatedButton(
               onPressed: _exportToExcel,
               child: Text('Export to Excel'),
