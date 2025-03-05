@@ -32,12 +32,15 @@ class _SalesEntryScreenState extends State<SalesEntryScreen> {
   Map<String, Color> rateFieldColor = {}; //rate field colour change
 
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-  final SupabaseClient supabase = Supabase.instance.client;
+  final supabase = Supabase.instance.client;
+
   final GlobalKey<FormFieldState> multiSelectKey = GlobalKey<FormFieldState>();
   List<Map<String, dynamic>> recentSales = [];
   int currentPage = 1;
   int pageSize = 10;
-  bool isLoading = false;
+  //bool isLoading = false;
+  List<Map<String, dynamic>> salesEntries = [];
+
   @override
   void initState() {
     super.initState();
@@ -118,6 +121,142 @@ class _SalesEntryScreenState extends State<SalesEntryScreen> {
       rateControllers[product]!.text = rates[product]!.toString();
       _calculateAmount(product);
     });
+  }
+
+  /*void _editEntry(Map<String, dynamic> entry) {
+    TextEditingController qtyController = TextEditingController(
+      text: entry['quantity'].toString(),
+    );
+    TextEditingController rateController = TextEditingController(
+      text: entry['rate'].toString(),
+    );
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text("Edit Sales Entry"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text("Product: ${entry['product_name']}"),
+              TextField(
+                controller: qtyController,
+                decoration: const InputDecoration(labelText: "Quantity"),
+                keyboardType: TextInputType.number,
+              ),
+              TextField(
+                controller: rateController,
+                decoration: const InputDecoration(labelText: "Rate"),
+                keyboardType: TextInputType.number,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Cancel"),
+            ),
+            TextButton(
+              onPressed: () async {
+                int newQty =
+                    int.tryParse(qtyController.text) ?? entry['quantity'];
+                double newRate =
+                    double.tryParse(rateController.text) ?? entry['rate'];
+                double newAmount = newQty * newRate;
+
+                await supabase
+                    .from('sales_entries')
+                    .update({
+                      'quantity': newQty,
+                      'rate': newRate,
+                      'amount': newAmount,
+                    })
+                    .eq('id', entry['id']);
+
+                Navigator.pop(context);
+                setState(() {}); // Refresh UI
+              },
+              child: const Text("Save"),
+            ),
+          ],
+        );
+      },
+    );
+  }*/
+
+  void _editInvoice(List<Map<String, dynamic>> invoiceEntries) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text("Edit Invoice: ${invoiceEntries.first['invoiceno']}"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children:
+                invoiceEntries.map((entry) {
+                  TextEditingController qtyController = TextEditingController(
+                    text: entry['quantity'].toString(),
+                  );
+                  TextEditingController rateController = TextEditingController(
+                    text: entry['rate'].toString(),
+                  );
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text("Product: ${entry['product_name']}"),
+                      TextField(
+                        controller: qtyController,
+                        decoration: const InputDecoration(
+                          labelText: "Quantity",
+                        ),
+                        keyboardType: TextInputType.number,
+                      ),
+                      TextField(
+                        controller: rateController,
+                        decoration: const InputDecoration(labelText: "Rate"),
+                        keyboardType: TextInputType.number,
+                      ),
+                      const SizedBox(height: 10),
+                    ],
+                  );
+                }).toList(),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Cancel"),
+            ),
+            TextButton(
+              onPressed: () async {
+                for (var entry in invoiceEntries) {
+                  int newQty =
+                      int.tryParse(entry['quantity'].toString()) ??
+                      entry['quantity'];
+                  int newRate =
+                      int.tryParse(entry['rate'].toString()) ?? entry['rate'];
+                  int newAmount = newQty * newRate;
+
+                  await supabase
+                      .from('sales_entries')
+                      .update({
+                        'quantity': newQty,
+                        'rate': newRate,
+                        'amount': newAmount,
+                      })
+                      .eq('id', entry['id']);
+                }
+
+                Navigator.pop(context);
+                setState(() {}); // Refresh UI
+              },
+              child: const Text("Save"),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   void _calculateAmount(String product) {
@@ -220,42 +359,49 @@ class _SalesEntryScreenState extends State<SalesEntryScreen> {
     }
   }
 
-  void _fetchRecentSales() async {
-    setState(() => isLoading = true);
+  Future<void> _fetchRecentSales() async {
+    try {
+      final response = await supabase
+          .from('sales_entries')
+          .select('''
+          id, date, invoiceno, 
+          parties!inner(partyname), 
+          products!inner(product_name), 
+          quantity, rate, amount
+        ''')
+          .order('date', ascending: false);
 
-    final response = await supabase
-        .from('sales_entries')
-        .select(
-          'id, date, parties!inner(partyname), products!inner(product_name), quantity, rate',
-        )
-        .order('date', ascending: false)
-        .range((currentPage - 1) * pageSize, currentPage * pageSize - 1);
-    print(
-      'Fetching entries from ${(currentPage - 1) * pageSize} to ${currentPage * pageSize - 1}',
-    );
-    print("Raw Response: $response"); // Debugging the actual response
-
-    setState(() {
-      recentSales = List.from(response);
-      isLoading = false;
-      print("recentSales length: ${recentSales.length}");
-    });
+      if (response != null && response.isNotEmpty) {
+        setState(() {
+          salesEntries =
+              response.map<Map<String, dynamic>>((entry) {
+                return {
+                  'id': entry['id'].toString(),
+                  'date': entry['date'].toString(),
+                  'invoiceno': entry['invoiceno'].toString(),
+                  'party_name': entry['parties']['partyname'].toString(),
+                  'product_name': entry['products']['product_name'].toString(),
+                  'quantity': entry['quantity'].toString(),
+                  'rate': entry['rate'].toString(),
+                  'amount': entry['amount'].toString(),
+                };
+              }).toList();
+        });
+      } else {
+        print('No sales entries found.');
+      }
+    } catch (e) {
+      print('Error fetching recent sales: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to fetch recent sales: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
-  void _editEntry(int entryId) async {
-    var entry =
-        await supabase
-            .from('sales_entries')
-            .select('*')
-            .eq('id', entryId)
-            .single();
-
-    // Navigate to an Edit Page (or open a Dialog)
-    /* Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => EditEntryScreen(entry: entry)),
-    );*/
-  }
+  double _dividerPosition = 0.7;
 
   @override
   Widget build(BuildContext context) {
@@ -263,162 +409,301 @@ class _SalesEntryScreenState extends State<SalesEntryScreen> {
       appBar: AppBar(title: const Text('Sales Entry')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Form(
-          key: _formKey,
-          child: ListView(
-            children: [
-              // Date Selector
-              ListTile(
-                title: Text(
-                  "Date: ${DateFormat('dd-MM-yyyy').format(selectedDate)}",
-                ),
-                trailing: IconButton(
-                  icon: const Icon(Icons.calendar_today),
-                  onPressed: () async {
-                    DateTime? picked = await showDatePicker(
-                      context: context,
-                      initialDate: selectedDate,
-                      firstDate: DateTime(2020),
-                      lastDate: DateTime(2030),
-                    );
-                    if (picked != null) {
-                      setState(() {
-                        selectedDate = picked;
-                      });
-                    }
-                  },
-                ),
-              ),
+        child: Column(
+          children: [
+            Expanded(
+              flex: (_dividerPosition * 100).toInt(),
 
-              // Invoice Number (Read-Only)
-              ListTile(
-                title: Text(
-                  "Invoice No: $invoiceNo",
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
+              child: Form(
+                key: _formKey,
+                child: ListView(
+                  children: [
+                    // Date Selector
+                    ListTile(
+                      title: Text(
+                        "Date: ${DateFormat('dd-MM-yyyy').format(selectedDate)}",
+                      ),
+                      trailing: IconButton(
+                        icon: const Icon(Icons.calendar_today),
+                        onPressed: () async {
+                          DateTime? picked = await showDatePicker(
+                            context: context,
+                            initialDate: selectedDate,
+                            firstDate: DateTime(2020),
+                            lastDate: DateTime(2030),
+                          );
+                          if (picked != null) {
+                            setState(() {
+                              selectedDate = picked;
+                            });
+                          }
+                        },
+                      ),
+                    ),
 
-              // Party Selection
-              SearchChoices.single(
-                items:
-                    partyList
-                        .map(
-                          (p) => DropdownMenuItem(
-                            value: partyMap[p],
-                            child: Text(p),
-                          ),
-                        )
-                        .toList(),
-                value: selectedParty,
-                hint: "Select Party",
-                onChanged: (value) {
-                  setState(() {
-                    selectedParty = value;
-                    selectedProducts.clear();
-                  });
-                },
-                isExpanded: true,
-              ),
+                    // Invoice Number (Read-Only)
+                    ListTile(
+                      title: Text(
+                        "Invoice No: $invoiceNo",
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
 
-              const SizedBox(height: 10),
-
-              // Product Multi-Select
-              MultiSelectDialogField(
-                initialValue:
-                    selectedProducts.isEmpty
-                        ? []
-                        : selectedProducts, // Ensure reset
-                items: productList.map((p) => MultiSelectItem(p, p)).toList(),
-                title: const Text("Select Products"),
-                buttonText: const Text("Choose Products"),
-                onConfirm: (values) {
-                  setState(() {
-                    selectedProducts = values.cast<String>();
-                    for (var product in selectedProducts) {
-                      qtyControllers[product] ??= TextEditingController();
-                      rateControllers[product] ??= TextEditingController();
-                      _updateRate(product);
-                    }
-                  });
-                },
-              ),
-
-              const SizedBox(height: 10),
-
-              // Product Entries
-              Column(
-                children:
-                    selectedProducts.map((productName) {
-                      return ListTile(
-                        title: Text(productName),
-                        subtitle: Row(
-                          children: [
-                            SizedBox(
-                              width: 80,
-                              child: TextFormField(
-                                controller: qtyControllers[productName],
-                                decoration: const InputDecoration(
-                                  labelText: "Qty",
+                    // Party Selection
+                    SearchChoices.single(
+                      items:
+                          partyList
+                              .map(
+                                (p) => DropdownMenuItem(
+                                  value: partyMap[p],
+                                  child: Text(p),
                                 ),
-                                keyboardType: TextInputType.number,
-                                onChanged: (_) => _calculateAmount(productName),
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            SizedBox(
-                              width: 80,
-                              child: TextFormField(
-                                controller: rateControllers[productName],
-                                decoration: InputDecoration(
-                                  labelText: "Rate",
-                                  filled: true,
-                                  fillColor:
-                                      rateFieldColor[productName] ??
-                                      Colors.white, // Apply color
-                                ),
-                                keyboardType: TextInputType.number,
-                                onChanged: (_) => _calculateAmount(productName),
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            SizedBox(
-                              width: 80,
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                              )
+                              .toList(),
+                      value: selectedParty,
+                      hint: "Select Party",
+                      onChanged: (value) {
+                        setState(() {
+                          selectedParty = value;
+                          selectedProducts.clear();
+                        });
+                      },
+                      isExpanded: true,
+                    ),
+
+                    const SizedBox(height: 10),
+
+                    // Product Multi-Select
+                    MultiSelectDialogField(
+                      initialValue:
+                          selectedProducts.isEmpty
+                              ? []
+                              : selectedProducts, // Ensure reset
+                      items:
+                          productList
+                              .map((p) => MultiSelectItem(p, p))
+                              .toList(),
+                      title: const Text("Select Products"),
+                      buttonText: const Text("Choose Products"),
+                      onConfirm: (values) {
+                        setState(() {
+                          selectedProducts = values.cast<String>();
+                          for (var product in selectedProducts) {
+                            qtyControllers[product] ??= TextEditingController();
+                            rateControllers[product] ??=
+                                TextEditingController();
+                            _updateRate(product);
+                          }
+                        });
+                      },
+                    ),
+
+                    const SizedBox(height: 10),
+
+                    // Product Entries
+                    Column(
+                      children:
+                          selectedProducts.map((productName) {
+                            return ListTile(
+                              title: Text(productName),
+                              subtitle: Row(
                                 children: [
-                                  const Text(
-                                    "Amount",
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      //fontWeight: FontWeight.bold,
-                                      color: Colors.grey,
+                                  SizedBox(
+                                    width: 80,
+                                    child: TextFormField(
+                                      controller: qtyControllers[productName],
+                                      decoration: const InputDecoration(
+                                        labelText: "Qty",
+                                      ),
+                                      keyboardType: TextInputType.number,
+                                      onChanged:
+                                          (_) => _calculateAmount(productName),
                                     ),
                                   ),
-                                  Text(
-                                    "₹ ${amounts[productName] ?? 0}",
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.black,
+                                  const SizedBox(width: 10),
+                                  SizedBox(
+                                    width: 80,
+                                    child: TextFormField(
+                                      controller: rateControllers[productName],
+                                      decoration: InputDecoration(
+                                        labelText: "Rate",
+                                        filled: true,
+                                        fillColor:
+                                            rateFieldColor[productName] ??
+                                            Colors.white, // Apply color
+                                      ),
+                                      keyboardType: TextInputType.number,
+                                      onChanged:
+                                          (_) => _calculateAmount(productName),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  SizedBox(
+                                    width: 80,
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        const Text(
+                                          "Amount",
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            //fontWeight: FontWeight.bold,
+                                            color: Colors.grey,
+                                          ),
+                                        ),
+                                        Text(
+                                          "₹ ${amounts[productName] ?? 0}",
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.black,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
                                 ],
                               ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }).toList(),
-              ),
-              const SizedBox(height: 20),
+                            );
+                          }).toList(),
+                    ),
+                    const SizedBox(height: 20),
 
-              ElevatedButton(
-                onPressed: _saveEntry,
-                child: const Text("Save Entry"),
+                    ElevatedButton(
+                      onPressed: _saveEntry,
+                      child: const Text("Save Entry"),
+                    ),
+                  ],
+                ),
               ),
-            ],
-          ),
+            ),
+
+            // Adjustable Divider
+            GestureDetector(
+              onVerticalDragUpdate: (details) {
+                setState(() {
+                  // Update the divider position based on drag movement
+                  _dividerPosition +=
+                      details.delta.dy / MediaQuery.of(context).size.height;
+                  // Clamp the value between 0.2 and 0.8 to prevent extreme sizes
+                  _dividerPosition = _dividerPosition.clamp(0.2, 0.8);
+                });
+              },
+              child: MouseRegion(
+                cursor: SystemMouseCursors.resizeUpDown, // Show resize cursor
+                child: Container(
+                  height: 10,
+                  color: Colors.grey[300],
+                  child: const Center(child: Icon(Icons.drag_handle, size: 20)),
+                ),
+              ),
+            ),
+            // Recent Sales Section
+            Expanded(
+              flex: ((1 - _dividerPosition) * 100).toInt(),
+              child: _buildSalesEntriesList(),
+            ),
+          ],
         ),
       ),
+    );
+  }
+
+  // ✅ Function to Fetch and Display Sales Entries
+  Widget _buildSalesEntriesList() {
+    return FutureBuilder(
+      future: supabase
+          .from('sales_entries')
+          .select('''
+          id, date, invoiceno, 
+          parties!inner(partyname), 
+          products!inner(product_name), 
+          quantity, rate, amount
+        ''')
+          .order('id', ascending: false),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        } else if (snapshot.hasError) {
+          return Center(child: Text('Error: ${snapshot.error}'));
+        } else if (!snapshot.hasData || (snapshot.data as List).isEmpty) {
+          return const Center(child: Text('No sales entries found.'));
+        }
+        // Grouping sales entries by invoice number
+        Map<String, List<Map<String, dynamic>>> groupedEntries = {};
+
+        for (var entry in snapshot.data as List) {
+          String invoiceNo = entry['invoiceno'].toString();
+          if (!groupedEntries.containsKey(invoiceNo)) {
+            groupedEntries[invoiceNo] = [];
+          }
+          groupedEntries[invoiceNo]!.add(entry);
+        }
+        /*List<Map<String, dynamic>> salesEntries =
+            (snapshot.data as List).map((entry) {
+              return {
+                'id': entry['id'],
+                'date': entry['date'],
+                'invoiceno': entry['invoiceno'],
+                'party_name': entry['parties']['partyname'],
+                'product_name': entry['products']['product_name'],
+                'quantity': entry['quantity'],
+                'rate': entry['rate'],
+                'amount': entry['amount'],
+              };
+            }).toList();*/
+
+        return ListView.builder(
+          itemCount: groupedEntries.length,
+          itemBuilder: (context, index) {
+            String invoiceNo = groupedEntries.keys.elementAt(index);
+            List<Map<String, dynamic>> invoiceEntries =
+                groupedEntries[invoiceNo]!;
+            return Card(
+              margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 10),
+              child: Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Invoice Header (Party Name & Date)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          "${invoiceEntries.first['parties']?['partyname']?.toString()} - ${invoiceEntries.first['date'].toString()}",
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.edit, color: Colors.blue),
+                          onPressed: () => _editInvoice(invoiceEntries),
+                        ),
+                      ],
+                    ),
+
+                    const Divider(),
+
+                    // Product List within Invoice
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children:
+                          invoiceEntries.map((entry) {
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 2),
+                              child: Text(
+                                "${entry['products']?['product_name'].toString()} | Qty: ${entry['quantity'].toString()} | Rate: ₹${entry['rate'].toString()} | Amount: ₹${entry['amount'].toString()}",
+                                style: const TextStyle(fontSize: 14),
+                              ),
+                            );
+                          }).toList(),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }
