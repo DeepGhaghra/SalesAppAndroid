@@ -5,6 +5,7 @@ import 'party_list.dart';
 import 'product_list.dart';
 import 'pricelist.dart';
 import 'export_data.dart';
+import 'pay_reminder.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -148,7 +149,7 @@ class HomeScreen extends StatelessWidget {
           Icons.upload_file,
           const ExportDataScreen(),
         ),
-        _menuTile(context, "Payment Reminder", Icons.payments, Container()),
+        _menuTile(context, "Payment Reminder", Icons.payments, const PaymentReminderScreen()),
       ],
     );
   }
