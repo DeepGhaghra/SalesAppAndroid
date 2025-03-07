@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sales_app/utils/background_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'sales_entries.dart';
 import 'party_list.dart';
@@ -6,6 +7,10 @@ import 'product_list.dart';
 import 'pricelist.dart';
 import 'export_data.dart';
 import 'pay_reminder.dart';
+import 'package:sales_app/utils/notify_service.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:android_intent_plus/android_intent.dart';
+import 'package:android_intent_plus/flag.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -14,7 +19,36 @@ void main() async {
     anonKey:
         'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJudndiY25kcGZuZHpnY3JzaWNjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDA0Nzg4NzIsImV4cCI6MjA1NjA1NDg3Mn0.YDEmWHZnsVrgPbf71ytIVm4IrOf9xTqzthlhluW_OLI',
   );
+  await NotificationService.init();
+  await initBackgroundService();
+  checkNotificationPermission();
   runApp(const SalesEntryApp());
+}
+
+void checkNotificationPermission() async {
+  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+      FlutterLocalNotificationsPlugin();
+
+  final bool? granted =
+      await flutterLocalNotificationsPlugin
+          .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >()
+          ?.areNotificationsEnabled();
+
+  print("Notifications enabled: $granted"); // ✅ Check log output
+}
+
+Future<void> requestExactAlarmPermission() async {
+  final intent = AndroidIntent(
+    action: 'android.settings.REQUEST_SCHEDULE_EXACT_ALARM',
+    flags: <int>[Flag.FLAG_ACTIVITY_NEW_TASK],
+  );
+  try {
+    await intent.launch();
+  } catch (e) {
+    print("⚠️ Error launching exact alarm settings: $e");
+  }
 }
 
 class SalesEntryApp extends StatelessWidget {
@@ -149,7 +183,12 @@ class HomeScreen extends StatelessWidget {
           Icons.upload_file,
           const ExportDataScreen(),
         ),
-        _menuTile(context, "Payment Reminder", Icons.payments, const PaymentReminderScreen()),
+        _menuTile(
+          context,
+          "Payment Reminder",
+          Icons.payments,
+          const PaymentReminderScreen(),
+        ),
       ],
     );
   }

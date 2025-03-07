@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'package:sales_app/utils/notify_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:dropdown_search/dropdown_search.dart';
@@ -27,23 +28,33 @@ class _PaymentReminderScreenState extends State<PaymentReminderScreen> {
     try {
       final now = DateTime.now();
       final today = DateFormat('yyyy-MM-dd').format(now);
-      final sevenDaysBefore  = DateFormat(
+      final sevenDaysBefore = DateFormat(
         'yyyy-MM-dd',
       ).format(now.subtract(Duration(days: 7)));
-    print("Fetching reminders between: $sevenDaysBefore and $today"); // Debug
 
       final response = await supabase
           .from('pay_reminder')
           .select('*, parties(partyname)')
-          .gte('reminder_date', sevenDaysBefore) // Show reminders till 7 days after due date
-        .order('reminder_date', ascending: true);
-      print("Reminders fetched: ${response.length}"); // Debugging log
+          .gte('reminder_date', sevenDaysBefore)
+          .order('reminder_date', ascending: true);
 
       if (mounted) {
         setState(() {
           reminders = response;
           isLoading = false;
         });
+      }
+      // Schedule notifications for fetched reminders
+      for (var reminder in response) {
+        final reminderDate = DateTime.parse(reminder['reminder_date']);
+        if (reminderDate.isAfter(now)) {
+          await NotificationService.scheduleReminderNotification(
+            reminder['id'],
+            "Payment Reminder",
+            "Reminder for ${reminder['parties']['partyname']}",
+            reminderDate,
+          );
+        }
       }
     } catch (e) {
       print("Error fetching reminders: $e");

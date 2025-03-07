@@ -577,7 +577,7 @@ class _SalesEntryScreenState extends State<SalesEntryScreen> {
                 ),
               ),
             ),
-
+/*
             // Adjustable Divider
             GestureDetector(
               onVerticalDragUpdate: (details) {
@@ -602,7 +602,7 @@ class _SalesEntryScreenState extends State<SalesEntryScreen> {
             Expanded(
               flex: ((1 - _dividerPosition) * 100).toInt(),
               child: _buildSalesEntriesList(),
-            ),
+            ),*/
           ],
         ),
       ),

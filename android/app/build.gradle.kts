@@ -4,22 +4,24 @@ plugins {
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
-
+kotlin {
+    jvmToolchain(17) // Use the JVM toolchain to ensure compatibility
+}
 android {
     namespace = "com.example.sales_app"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = android.ndkVersion
 
-
     compileOptions {
+        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
 
     kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_17.toString()
+        jvmTarget = "17"
     }
-
+   
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.example.sales_app"
@@ -42,4 +44,8 @@ android {
 
 flutter {
     source = "../.."
+}
+dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.3")
+	implementation("org.jetbrains.kotlin:kotlin-reflect:1.9.22")
 }
