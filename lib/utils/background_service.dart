@@ -11,6 +11,7 @@ Future<void> initBackgroundService() async {
     androidConfiguration: AndroidConfiguration(
       onStart: onStart,
       isForegroundMode: false,
+      autoStart: true,
     ),
     iosConfiguration: IosConfiguration(
       onBackground: onIosBackground,
@@ -28,19 +29,25 @@ bool onIosBackground(ServiceInstance service) {
 Timer? timer;
 
 @pragma('vm:entry-point')
-void onStart(ServiceInstance service) {
+void onStart(ServiceInstance service) async {
   print("🔄 Background service started");
-
+ await Supabase.initialize(
+    url: 'https://bnvwbcndpfndzgcrsicc.supabase.co',
+    anonKey:
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJudndiY25kcGZuZHpnY3JzaWNjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDA0Nzg4NzIsImV4cCI6MjA1NjA1NDg3Mn0.YDEmWHZnsVrgPbf71ytIVm4IrOf9xTqzthlhluW_OLI',
+  );
   // ✅ Listen for stop requests
   service.on("stopService").listen((event) {
     print("⏹ Stopping background service...");
-    timer?.cancel(); 
+    timer?.cancel();
     service.stopSelf();
   });
 
   checkAndScheduleReminders(service);
 
   timer = Timer(Duration(hours: 1), () {
+    print("🔄 Restarting background service...");
+
     onStart(service); // ✅ Restart every hour
   });
 }
@@ -54,11 +61,13 @@ Future<void> checkAndScheduleReminders(ServiceInstance service) async {
   final now = DateTime.now();
   final today =
       "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
+  print("Fetching reminders for today: $today");
 
   final reminders = await Supabase.instance.client
       .from('pay_reminder')
       .select('id, reminder_date, status, description, parties(partyname)')
       .eq('reminder_date', today);
+  print("Reminders fetched: ${reminders.length}");
 
   for (var reminder in reminders) {
     final reminderDate = DateTime.parse(reminder['reminder_date']);
@@ -66,15 +75,23 @@ Future<void> checkAndScheduleReminders(ServiceInstance service) async {
       reminderDate.year,
       reminderDate.month,
       reminderDate.day,
-      17,
-      30,
+      19,
+      15,
       0,
     );
-    await NotificationService.scheduleReminderNotification(
-      reminder['id'],
-      "Payment Reminder",
-      "Reminder for ${reminder['parties']['partyname']}",
-      scheduledTime,
-    );
+    // Check if the reminder time is in the future
+    if (scheduledTime.isAfter(now)) {
+      print("Scheduling reminder ID ${reminder['id']} for $scheduledTime");
+      await NotificationService.scheduleReminderNotification(
+        reminder['id'],
+        "Payment Reminder",
+        "Reminder for ${reminder['parties']['partyname']}",
+        scheduledTime,
+      );
+    } else {
+      print(
+        "Reminder ID ${reminder['id']} is in the past and will not be scheduled",
+      );
+    }
   }
 }

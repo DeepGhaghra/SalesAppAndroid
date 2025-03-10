@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:multi_select_flutter/multi_select_flutter.dart';
-import 'package:search_choices/search_choices.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'package:drop_down_list/model/selected_list_item.dart';
+import 'package:drop_down_list/drop_down_list.dart';
 
 class SalesEntryScreen extends StatefulWidget {
   const SalesEntryScreen({super.key});
@@ -38,13 +39,20 @@ class _SalesEntryScreenState extends State<SalesEntryScreen> {
   List<Map<String, dynamic>> recentSales = [];
   int currentPage = 1;
   int pageSize = 10;
-  //bool isLoading = false;
+  bool isLoading = false;
   List<Map<String, dynamic>> salesEntries = [];
+  String searchQuery = "";
+  String? selectedPartyName;
 
   @override
   void initState() {
     super.initState();
-    _loadData();
+    isLoading = true; // ✅ Set loading state before fetching data
+    _loadData().then((_) {
+      setState(() {
+        isLoading = false; // ✅ Update state only after data is loaded
+      });
+    });
     _fetchRecentSales();
     _generateInvoiceNo();
   }
@@ -58,11 +66,12 @@ class _SalesEntryScreenState extends State<SalesEntryScreen> {
       setState(() {
         partyList =
             partyResponse.map<String>((p) {
-              partyMap[p['partyname']] = p['id'].toString();
-              return p['partyname'].toString();
+              String fullPartyName = p['partyname'].toString();
+              partyMap[fullPartyName] = p['id'].toString();
+              return fullPartyName;
             }).toList();
         partyList.sort(); // Sort alphabetically
-
+        isLoading = false;
         productList =
             productResponse.map<String>((p) {
               productMap[p['product_name']] = p['id'].toString();
@@ -85,6 +94,7 @@ class _SalesEntryScreenState extends State<SalesEntryScreen> {
       });
     } catch (e) {
       print('Error loading data: $e');
+      isLoading = false;
     }
   }
 
@@ -359,6 +369,51 @@ class _SalesEntryScreenState extends State<SalesEntryScreen> {
     }
   }
 
+  void _showPartyDropDown(BuildContext context) {
+    if (isLoading) {
+      Fluttertoast.showToast(msg: "Loading parties, please wait...");
+      return;
+    }
+    if (partyList.isEmpty) {
+      Fluttertoast.showToast(msg: "Fetching Parties...Please Wait...");
+      return;
+    }
+    List<SelectedListItem<String>> partyItems =
+        partyList.map((party) {
+          return SelectedListItem<String>(data: party);
+        }).toList();
+
+    DropDownState(
+      dropDown: DropDown(
+        data: partyItems,
+        bottomSheetTitle: Text(
+          "Select Party",
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+        ),
+        isDismissible: true,
+        searchHintText: "Search Party...",
+        onSelected: (List<SelectedListItem<String>> selectedList) {
+          if (selectedList.isNotEmpty) {
+            String selectedName = selectedList.first.data;
+            String selectedID = partyMap[selectedName] ?? "0";
+
+            setState(() {
+              selectedParty = selectedID;
+              selectedPartyName = selectedName;
+            });
+            print(
+              "🟢 Corrected Selection - Party ID: $selectedParty, Name: $selectedPartyName",
+            );
+
+            Future.microtask(() {
+              setState(() {}); // ✅ Ensures UI rebuilds
+            });
+          }
+        },
+      ),
+    ).showModal(context);
+  }
+
   Future<void> _fetchRecentSales() async {
     try {
       final response = await supabase
@@ -409,47 +464,83 @@ class _SalesEntryScreenState extends State<SalesEntryScreen> {
       appBar: AppBar(title: const Text('Sales Entry')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            Expanded(
-              flex: (_dividerPosition * 100).toInt(),
-
-              child: Form(
-                key: _formKey,
-                child: ListView(
+        child:
+            isLoading
+                ? Center(
+                  child: CircularProgressIndicator(),
+                ) // ✅ Show loader while fetching data
+                : Column(
                   children: [
-                    // Date Selector
-                    ListTile(
-                      title: Text(
-                        "Date: ${DateFormat('dd-MM-yyyy').format(selectedDate)}",
-                      ),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.calendar_today),
-                        onPressed: () async {
-                          DateTime? picked = await showDatePicker(
-                            context: context,
-                            initialDate: selectedDate,
-                            firstDate: DateTime(2020),
-                            lastDate: DateTime(2030),
-                          );
-                          if (picked != null) {
-                            setState(() {
-                              selectedDate = picked;
-                            });
-                          }
-                        },
-                      ),
-                    ),
+                    Expanded(
+                      flex: (_dividerPosition * 100).toInt(),
 
-                    // Invoice Number (Read-Only)
-                    ListTile(
-                      title: Text(
-                        "Invoice No: $invoiceNo",
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    ),
+                      child: Form(
+                        key: _formKey,
+                        child: ListView(
+                          children: [
+                            // Date Selector
+                            ListTile(
+                              title: Text(
+                                "Date: ${DateFormat('dd-MM-yyyy').format(selectedDate)}",
+                              ),
+                              trailing: IconButton(
+                                icon: const Icon(Icons.calendar_today),
+                                onPressed: () async {
+                                  DateTime? picked = await showDatePicker(
+                                    context: context,
+                                    initialDate: selectedDate,
+                                    firstDate: DateTime(2020),
+                                    lastDate: DateTime(2030),
+                                  );
+                                  if (picked != null) {
+                                    setState(() {
+                                      selectedDate = picked;
+                                    });
+                                  }
+                                },
+                              ),
+                            ),
 
-                    // Party Selection
+                            // Invoice Number (Read-Only)
+                            ListTile(
+                              title: Text(
+                                "Invoice No: $invoiceNo",
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            InkWell(
+                              onTap:
+                                  isLoading || partyList.isEmpty
+                                      ? () => Fluttertoast.showToast(
+                                        msg: "Loading parties, please wait...",
+                                      )
+                                      : () => _showPartyDropDown(context),
+                              child: Container(
+                                padding: EdgeInsets.symmetric(
+                                  vertical: 15,
+                                  horizontal: 10,
+                                ),
+                                decoration: BoxDecoration(
+                                  border: Border.all(color: Colors.grey),
+                                  borderRadius: BorderRadius.circular(5),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      selectedPartyName ??
+                                          "Select Party", // ✅ Show Name, Not ID
+                                      style: TextStyle(fontSize: 16),
+                                    ),
+                                    Icon(Icons.arrow_drop_down),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            /*  // Party Selection
                     SearchChoices.single(
                       items:
                           partyList
@@ -469,115 +560,123 @@ class _SalesEntryScreenState extends State<SalesEntryScreen> {
                         });
                       },
                       isExpanded: true,
-                    ),
+                    ),*/
+                            const SizedBox(height: 10),
 
-                    const SizedBox(height: 10),
+                            // Product Multi-Select
+                            MultiSelectDialogField(
+                              initialValue:
+                                  selectedProducts.isEmpty
+                                      ? []
+                                      : selectedProducts, // Ensure reset
+                              items:
+                                  productList
+                                      .map((p) => MultiSelectItem(p, p))
+                                      .toList(),
+                              title: const Text("Select Products"),
+                              buttonText: const Text("Choose Products"),
+                              onConfirm: (values) {
+                                setState(() {
+                                  selectedProducts = values.cast<String>();
+                                  for (var product in selectedProducts) {
+                                    qtyControllers[product] ??=
+                                        TextEditingController();
+                                    rateControllers[product] ??=
+                                        TextEditingController();
+                                    _updateRate(product);
+                                  }
+                                });
+                              },
+                            ),
 
-                    // Product Multi-Select
-                    MultiSelectDialogField(
-                      initialValue:
-                          selectedProducts.isEmpty
-                              ? []
-                              : selectedProducts, // Ensure reset
-                      items:
-                          productList
-                              .map((p) => MultiSelectItem(p, p))
-                              .toList(),
-                      title: const Text("Select Products"),
-                      buttonText: const Text("Choose Products"),
-                      onConfirm: (values) {
-                        setState(() {
-                          selectedProducts = values.cast<String>();
-                          for (var product in selectedProducts) {
-                            qtyControllers[product] ??= TextEditingController();
-                            rateControllers[product] ??=
-                                TextEditingController();
-                            _updateRate(product);
-                          }
-                        });
-                      },
-                    ),
+                            const SizedBox(height: 10),
 
-                    const SizedBox(height: 10),
-
-                    // Product Entries
-                    Column(
-                      children:
-                          selectedProducts.map((productName) {
-                            return ListTile(
-                              title: Text(productName),
-                              subtitle: Row(
-                                children: [
-                                  SizedBox(
-                                    width: 80,
-                                    child: TextFormField(
-                                      controller: qtyControllers[productName],
-                                      decoration: const InputDecoration(
-                                        labelText: "Qty",
-                                      ),
-                                      keyboardType: TextInputType.number,
-                                      onChanged:
-                                          (_) => _calculateAmount(productName),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 10),
-                                  SizedBox(
-                                    width: 80,
-                                    child: TextFormField(
-                                      controller: rateControllers[productName],
-                                      decoration: InputDecoration(
-                                        labelText: "Rate",
-                                        filled: true,
-                                        fillColor:
-                                            rateFieldColor[productName] ??
-                                            Colors.white, // Apply color
-                                      ),
-                                      keyboardType: TextInputType.number,
-                                      onChanged:
-                                          (_) => _calculateAmount(productName),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 10),
-                                  SizedBox(
-                                    width: 80,
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        const Text(
-                                          "Amount",
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            //fontWeight: FontWeight.bold,
-                                            color: Colors.grey,
+                            // Product Entries
+                            Column(
+                              children:
+                                  selectedProducts.map((productName) {
+                                    return ListTile(
+                                      title: Text(productName),
+                                      subtitle: Row(
+                                        children: [
+                                          SizedBox(
+                                            width: 80,
+                                            child: TextFormField(
+                                              controller:
+                                                  qtyControllers[productName],
+                                              decoration: const InputDecoration(
+                                                labelText: "Qty",
+                                              ),
+                                              keyboardType:
+                                                  TextInputType.number,
+                                              onChanged:
+                                                  (_) => _calculateAmount(
+                                                    productName,
+                                                  ),
+                                            ),
                                           ),
-                                        ),
-                                        Text(
-                                          "₹ ${amounts[productName] ?? 0}",
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.black,
+                                          const SizedBox(width: 10),
+                                          SizedBox(
+                                            width: 80,
+                                            child: TextFormField(
+                                              controller:
+                                                  rateControllers[productName],
+                                              decoration: InputDecoration(
+                                                labelText: "Rate",
+                                                filled: true,
+                                                fillColor:
+                                                    rateFieldColor[productName] ??
+                                                    Colors.white, // Apply color
+                                              ),
+                                              keyboardType:
+                                                  TextInputType.number,
+                                              onChanged:
+                                                  (_) => _calculateAmount(
+                                                    productName,
+                                                  ),
+                                            ),
                                           ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            );
-                          }).toList(),
-                    ),
-                    const SizedBox(height: 20),
+                                          const SizedBox(width: 10),
+                                          SizedBox(
+                                            width: 80,
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                const Text(
+                                                  "Amount",
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    //fontWeight: FontWeight.bold,
+                                                    color: Colors.grey,
+                                                  ),
+                                                ),
+                                                Text(
+                                                  "₹ ${amounts[productName] ?? 0}",
+                                                  style: TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                    color: Colors.black,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  }).toList(),
+                            ),
+                            const SizedBox(height: 20),
 
-                    ElevatedButton(
-                      onPressed: _saveEntry,
-                      child: const Text("Save Entry"),
+                            ElevatedButton(
+                              onPressed: _saveEntry,
+                              child: const Text("Save Entry"),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
-                  ],
-                ),
-              ),
-            ),
-/*
+                    /*
             // Adjustable Divider
             GestureDetector(
               onVerticalDragUpdate: (details) {
@@ -603,8 +702,8 @@ class _SalesEntryScreenState extends State<SalesEntryScreen> {
               flex: ((1 - _dividerPosition) * 100).toInt(),
               child: _buildSalesEntriesList(),
             ),*/
-          ],
-        ),
+                  ],
+                ),
       ),
     );
   }
