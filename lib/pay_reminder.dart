@@ -1,9 +1,10 @@
+import 'package:drop_down_list/model/selected_list_item.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
-import 'package:sales_app/utils/notify_service.dart';
+import 'package:sales_app/utils/notification_manager.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
-import 'package:dropdown_search/dropdown_search.dart';
+import 'package:drop_down_list/drop_down_list.dart';
 
 class PaymentReminderScreen extends StatefulWidget {
   const PaymentReminderScreen({super.key});
@@ -11,6 +12,11 @@ class PaymentReminderScreen extends StatefulWidget {
   @override
   _PaymentReminderScreenState createState() => _PaymentReminderScreenState();
 }
+
+String? selectedPartyName;
+String? selectedParty;
+List<String> partyList = [];
+Map<String, String> partyMap = {};
 
 class _PaymentReminderScreenState extends State<PaymentReminderScreen> {
   final SupabaseClient supabase = Supabase.instance.client;
@@ -22,6 +28,7 @@ class _PaymentReminderScreenState extends State<PaymentReminderScreen> {
   void initState() {
     super.initState();
     fetchReminders();
+    _loadParty();
   }
 
   Future<void> fetchReminders() async {
@@ -48,7 +55,7 @@ class _PaymentReminderScreenState extends State<PaymentReminderScreen> {
       for (var reminder in response) {
         final reminderDate = DateTime.parse(reminder['reminder_date']);
         if (reminderDate.isAfter(now)) {
-          await NotificationService.scheduleReminderNotification(
+          await NotificationManager.scheduleReminderNotification(
             reminder['id'],
             "Payment Reminder",
             "Reminder for ${reminder['parties']['partyname']}",
@@ -61,6 +68,24 @@ class _PaymentReminderScreenState extends State<PaymentReminderScreen> {
       if (mounted) {
         setState(() => isLoading = false);
       }
+    }
+  }
+
+  Future<void> _loadParty() async {
+    try {
+      final partyResponse = await supabase.from('parties').select();
+      setState(() {
+        partyMap.clear();
+        partyList =
+            partyResponse.map<String>((p) {
+              String fullPartyName = p['partyname'].toString();
+              partyMap[fullPartyName] = p['id'].toString();
+              return fullPartyName;
+            }).toList();
+        partyList.sort();
+      });
+    } catch (e) {
+      print('Error loading data: $e');
     }
   }
 
@@ -289,7 +314,6 @@ class _AddReminderPageState extends State<AddReminderPage> {
                   .toList();
           isLoading = false;
         });
-        print("Parties List: $parties");
       }
     } catch (e) {
       print("Error fetching parties: $e");
@@ -297,18 +321,73 @@ class _AddReminderPageState extends State<AddReminderPage> {
   }
 
   Future<void> addReminder() async {
-    if (selectedPartyId == null || selectedDate == null) return;
+    if (selectedPartyId == null ||
+        selectedPartyId!.isEmpty ||
+        selectedPartyId == "0") {
+      Fluttertoast.showToast(msg: "Please select a valid party.");
+      return;
+    }
+    if (selectedDate == null) {
+      Fluttertoast.showToast(msg: "Please select a reminder date.");
+      return;
+    }
+    try {
+      await supabase.from('pay_reminder').insert({
+        'party_id': int.parse(selectedPartyId!),
+        'reminder_date': selectedDate!.toIso8601String(),
+        'description': descriptionController.text,
+        'status': 'Pending',
+      });
+      Fluttertoast.showToast(msg: "Reminder saved succefully");
 
-    await supabase.from('pay_reminder').insert({
-      'party_id': int.parse(selectedPartyId!),
-      'reminder_date': selectedDate!.toIso8601String(),
-      'description': descriptionController.text,
-      'status': 'Pending',
-    });
-    Fluttertoast.showToast(msg: "Reminder saved succefully");
+      widget.onReminderAdded();
+      Navigator.pop(context);
+    } catch (e) {
+      print("Error saving reminder: $e");
+      Fluttertoast.showToast(msg: "Failed to save reminder. Try again.");
+    }
+  }
 
-    widget.onReminderAdded();
-    Navigator.pop(context);
+  void _showPartyDropDown(BuildContext context) {
+    if (isLoading) {
+      Fluttertoast.showToast(msg: "Loading parties, please wait...");
+      return;
+    }
+    if (partyList.isEmpty) {
+      Fluttertoast.showToast(msg: "Fetching Parties...Please Wait...");
+      return;
+    }
+    List<SelectedListItem<String>> partyItems =
+        partyList.map((party) {
+          return SelectedListItem<String>(data: party);
+        }).toList();
+
+    DropDownState(
+      dropDown: DropDown(
+        data: partyItems,
+        bottomSheetTitle: Text(
+          "Select Party",
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+        ),
+        isDismissible: true,
+        searchHintText: "Search Party...",
+        onSelected: (List<SelectedListItem<String>> selectedList) {
+          if (selectedList.isNotEmpty) {
+            String selectedName = selectedList.first.data.trim();
+            String? selectedID = partyMap[selectedName]?.toString();
+            if (selectedID != null) {
+              setState(() {
+                selectedPartyId = selectedID;
+                selectedPartyName = selectedName;
+              });
+            }
+            Future.microtask(() {
+              setState(() {}); // ✅ Ensures UI rebuilds
+            });
+          }
+        },
+      ),
+    ).showModal(context);
   }
 
   @override
@@ -325,7 +404,36 @@ class _AddReminderPageState extends State<AddReminderPage> {
                 : Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    DropdownButtonFormField<String>(
+                    InkWell(
+                      onTap:
+                          isLoading || partyList.isEmpty
+                              ? () => Fluttertoast.showToast(
+                                msg: "Loading parties, please wait...",
+                              )
+                              : () => _showPartyDropDown(context),
+                      child: Container(
+                        padding: EdgeInsets.symmetric(
+                          vertical: 15,
+                          horizontal: 10,
+                        ),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey),
+                          borderRadius: BorderRadius.circular(5),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              selectedPartyName ??
+                                  "Select Party", // ✅ Show Name, Not ID
+                              style: TextStyle(fontSize: 16),
+                            ),
+                            Icon(Icons.arrow_drop_down),
+                          ],
+                        ),
+                      ),
+                    ),
+                    /* DropdownButtonFormField<String>(
                       decoration: InputDecoration(
                         labelText: "Select Party",
                         border: OutlineInputBorder(
@@ -346,7 +454,7 @@ class _AddReminderPageState extends State<AddReminderPage> {
                           selectedPartyId = value;
                         });
                       },
-                    ),
+                    ),*/
                     SizedBox(height: 10),
                     TextField(
                       controller: descriptionController,

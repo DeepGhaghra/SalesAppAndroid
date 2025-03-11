@@ -257,6 +257,16 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
                 ),
               ),
               SizedBox(height: 10),
+            ] else ...[
+              Text(
+                'No data found for the selected date range.',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.red,
+                ),
+              ),
+              SizedBox(height: 10),
             ],
             ElevatedButton(
               onPressed: _exportToExcel,
