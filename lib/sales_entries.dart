@@ -60,7 +60,7 @@ class _SalesEntryScreenState extends State<SalesEntryScreen> {
   Future<void> _loadData() async {
     try {
       final partyResponse = await supabase.from('parties').select();
-      final productResponse = await supabase.from('products').select();
+      final productResponse = await supabase.from('product_head').select();
       final priceResponse = await supabase.from('pricelist').select();
 
       setState(() {
@@ -421,7 +421,7 @@ class _SalesEntryScreenState extends State<SalesEntryScreen> {
           .select('''
           id, date, invoiceno, 
           parties!inner(partyname), 
-          products!inner(product_name), 
+          product_head!inner(product_name), 
           quantity, rate, amount
         ''')
           .order('date', ascending: false);
@@ -435,7 +435,7 @@ class _SalesEntryScreenState extends State<SalesEntryScreen> {
                   'date': entry['date'].toString(),
                   'invoiceno': entry['invoiceno'].toString(),
                   'party_name': entry['parties']['partyname'].toString(),
-                  'product_name': entry['products']['product_name'].toString(),
+                  'product_name': entry['product_head']['product_name'].toString(),
                   'quantity': entry['quantity'].toString(),
                   'rate': entry['rate'].toString(),
                   'amount': entry['amount'].toString(),
@@ -716,7 +716,7 @@ class _SalesEntryScreenState extends State<SalesEntryScreen> {
           .select('''
           id, date, invoiceno, 
           parties!inner(partyname), 
-          products!inner(product_name), 
+          product_head!inner(product_name), 
           quantity, rate, amount
         ''')
           .order('id', ascending: false),
@@ -790,7 +790,7 @@ class _SalesEntryScreenState extends State<SalesEntryScreen> {
                             return Padding(
                               padding: const EdgeInsets.symmetric(vertical: 2),
                               child: Text(
-                                "${entry['products']?['product_name'].toString()} | Qty: ${entry['quantity'].toString()} | Rate: ₹${entry['rate'].toString()} | Amount: ₹${entry['amount'].toString()}",
+                                "${entry['product_head']?['product_name'].toString()} | Qty: ${entry['quantity'].toString()} | Rate: ₹${entry['rate'].toString()} | Amount: ₹${entry['amount'].toString()}",
                                 style: const TextStyle(fontSize: 14),
                               ),
                             );

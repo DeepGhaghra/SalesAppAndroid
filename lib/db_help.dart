@@ -89,7 +89,7 @@ class DatabaseHelper {
     if (kIsWeb) return []; // ✅ Web: No caching
 
     Database db = await instance.database;
-    final result = await db.query('products', orderBy: 'product_name ASC');
+    final result = await db.query('product_head', orderBy: 'product_name ASC');
 
     return result
         .map(
@@ -106,9 +106,9 @@ class DatabaseHelper {
     if (kIsWeb) return; // ✅ Web: No caching
 
     Database db = await instance.database;
-    await db.delete('products');
+    await db.delete('product_head');
     for (var product in products) {
-      await db.insert('products', {
+      await db.insert('product_head', {
         'product_name': product['product_name'],
         'product_rate': int.parse(product['product_rate'].toString()),
       });

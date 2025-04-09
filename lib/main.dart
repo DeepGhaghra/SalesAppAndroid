@@ -8,6 +8,8 @@ import 'pricelist.dart';
 import 'export_data.dart';
 import 'pay_reminder.dart';
 import 'party_folders.dart';
+import 'partysalestarget.dart';
+import 'stockview.dart';
 import 'package:sales_app/utils/notification_manager.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
@@ -135,6 +137,12 @@ class HomeScreen extends StatelessWidget {
               "Manage Party Folders",
               const PartyFolderScreen(),
             ),
+            _drawerItem(
+              context,
+              Icons.inventory_2,
+              "Manage Stock",
+              const PartyFolderScreen(),
+            ),
           ],
         ),
       ),
@@ -163,7 +171,7 @@ class HomeScreen extends StatelessWidget {
 
   Widget _homeMenu(BuildContext context) {
     return GridView.count(
-      crossAxisCount: 2,
+      crossAxisCount: 3,
       padding: const EdgeInsets.all(16),
       children: [
         _menuTile(
@@ -180,7 +188,7 @@ class HomeScreen extends StatelessWidget {
         ),
         _menuTile(
           context,
-          "Manage Products",
+          "Product Heads",
           Icons.shopping_cart,
           const ProductListScreen(isOnline: true),
         ),
@@ -201,6 +209,18 @@ class HomeScreen extends StatelessWidget {
           "Payment Reminder",
           Icons.payments,
           const PaymentReminderScreen(),
+        ),
+        _menuTile(
+          context,
+          "Party Sales Target",
+          Icons.document_scanner_sharp,
+          const PartySalesTargetScreen(),
+        ),
+        _menuTile(
+          context,
+          "Stock View",
+          Icons.inventory_2,
+          const StockViewScreen(),
         ),
       ],
     );

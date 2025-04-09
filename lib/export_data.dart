@@ -38,7 +38,7 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
       final response = await supabase
           .from('sales_entries')
           .select(
-            'date, invoiceno, quantity, rate, amount, parties (partyname), products (product_name)',
+            'date, invoiceno, quantity, rate, amount, parties (partyname), product_head (product_name)',
           )
           .gte('date', DateFormat('dd-MM-yyyy').format(startDate!))
           .lte('date', DateFormat('dd-MM-yyyy').format(endDate!))
@@ -48,7 +48,7 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
       setState(() {
         salesEntries =
             response.map((entry) {
-              String productName = entry['products']['product_name'];
+              String productName = entry['product_head']['product_name'];
               int quantity = entry['quantity'] ?? 0;
 
               tempProductSummary[productName] =

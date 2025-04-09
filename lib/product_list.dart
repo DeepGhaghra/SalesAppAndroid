@@ -49,7 +49,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
   Future<void> _syncFromSupabase() async {
     try {
       final response = await supabase
-          .from('products')
+          .from('product_head')
           .select('id, product_name, product_rate');
       List<Map<String, dynamic>> cloudProducts =
           List<Map<String, dynamic>>.from(response);
@@ -85,11 +85,11 @@ class _ProductListScreenState extends State<ProductListScreen> {
     if (!isOnline) return;
 
     supabase
-        .channel('public:products')
+        .channel('public:product_head')
         .onPostgresChanges(
           event: PostgresChangeEvent.all,
           schema: 'public',
-          table: 'products',
+          table: 'product_head',
           callback: (payload) {
             print("🔄 Realtime update received: $payload");
             _syncFromSupabase();
@@ -184,7 +184,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
         Fluttertoast.showToast(msg: "⚠️ Product '$name' already exists!");
         return;
       }
-      await supabase.from('products').insert({
+      await supabase.from('product_head').insert({
         'product_name': name,
         'product_rate': sellRate,
       });
@@ -275,7 +275,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
 
                 try {
                   await supabase
-                      .from('products')
+                      .from('product_head')
                       .update({
                         'product_name': updatedName,
                         'product_rate': updatedRateInt,

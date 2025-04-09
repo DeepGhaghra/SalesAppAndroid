@@ -36,7 +36,7 @@ class _PriceListScreenState extends State<PriceListScreen> {
   Future<void> _fetchAllProducts() async {
     try {
       final response = await supabase
-          .from('products')
+          .from('product_head')
           .select('id, product_name,product_rate')
           .order('product_name', ascending: true);
       setState(() {
