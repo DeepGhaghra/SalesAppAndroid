@@ -23,7 +23,7 @@ class DatabaseHelper {
     String path = join(documentsDirectory.path, 'sales_app.db');
     return await openDatabase(
       path,
-      version: 3,
+      version: 4,
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE parties (
@@ -51,18 +51,22 @@ class DatabaseHelper {
       ''');
       },
       onUpgrade: (db, oldVersion, newVersion) async {
-        if (oldVersion < 3) {
+        if (oldVersion < 4) {
+         await db.execute('''
+            CREATE TABLE IF NOT EXISTS product_head (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              product_name TEXT NOT NULL,
+              product_rate INTEGER NOT NULL
+            )
+          ''');
+          // ✅ Copy data from `products` to `product_head`
           await db.execute('''
-          CREATE TABLE pricelist (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            product_id INTEGER NOT NULL,
-            party_id INTEGER NOT NULL,
-            price INTEGER NOT NULL,
-            UNIQUE (product_id, party_id),
-            FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
-            FOREIGN KEY (party_id) REFERENCES parties(id) ON DELETE CASCADE
-          )
-        ''');
+            INSERT INTO product_head (id, product_name, product_rate)
+            SELECT id, product_name, product_rate FROM products
+          ''');
+
+          // ✅ Delete the old `products` table
+          await db.execute('DROP TABLE IF EXISTS products');
         }
       },
     );

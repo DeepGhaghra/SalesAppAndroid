@@ -146,9 +146,6 @@ class _PartySalesTargetScreenState extends State<PartySalesTargetScreen> {
       DateTime startDate = DateTime(startYear, 4, 1); // April 1 of that year
       DateTime endDate = DateTime(startYear + 1, 3, 31);
 
-      debugPrint(
-        'Fetching sales for party $partyId from ${startDate.toIso8601String()} to ${endDate.toIso8601String()}',
-      );
       String startDateStr = DateFormat('dd-MM-yyyy').format(startDate);
       String endDateStr = DateFormat('dd-MM-yyyy').format(endDate);
 
@@ -159,17 +156,11 @@ class _PartySalesTargetScreenState extends State<PartySalesTargetScreen> {
           .gte('date', startDateStr)
           .lte('date', endDateStr);
 
-      debugPrint('Found ${sales.length} sales entries for party $partyId');
-
       if (sales.isEmpty) {
-        debugPrint('No sales found for party $partyId in year $year');
         return 0.0;
       }
       double total = 0.0;
       for (var sale in sales) {
-        debugPrint(
-          'Sale entry: ${sale['id']} - Amount: ${sale['amount']} - Date: ${sale['date']}',
-        );
         // Handle different possible amount formats
         if (sale['amount'] is int) {
           total += sale['amount'].toDouble();
@@ -179,8 +170,6 @@ class _PartySalesTargetScreenState extends State<PartySalesTargetScreen> {
           total += double.tryParse(sale['amount']) ?? 0.0;
         }
       }
-      debugPrint('Total sales for party $partyId: $total');
-
       return total;
     } catch (e) {
       return 0.0;
