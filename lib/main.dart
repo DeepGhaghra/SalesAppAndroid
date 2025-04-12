@@ -1,5 +1,7 @@
-import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:io' show Platform; // Only for non-web platforms
 import 'package:flutter/material.dart';
+import 'package:sales_app/design_manage.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'sales_entries.dart';
 import 'party_list.dart';
@@ -47,7 +49,10 @@ void checkNotificationPermission() async {
 Future<void> requestNotificationPermissions() async {
   final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
       FlutterLocalNotificationsPlugin();
-
+  if (kIsWeb) {
+    print("Notification permissions are not required on Web.");
+    return;
+  }
   if (Platform.isAndroid) {
     print("✅ Android: No explicit permission required for notifications.");
     return; // ✅ Skip Android 12- requests
@@ -186,11 +191,17 @@ class HomeScreen extends StatelessWidget {
           Icons.group,
           const PartyListScreen(isOnline: true),
         ),
-        _menuTile(
+        /*_menuTile(
           context,
           "Product Heads",
           Icons.shopping_cart,
           const ProductListScreen(isOnline: true),
+        ),*/
+        _menuTile(
+          context,
+          "All Stock Design",
+          Icons.shopping_cart,
+          const StockManageScreen(isOnline: true),
         ),
         _menuTile(
           context,

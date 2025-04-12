@@ -1,4 +1,5 @@
-import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:io' show Platform; // Keep this for non-web platforms
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
@@ -53,6 +54,10 @@ class NotificationManager {
 
   // ✅ Request Exact Alarm Permission (Android 12+)
   static Future<void> requestExactAlarmPermission() async {
+    if (kIsWeb) {
+      print("Exact alarm permission request is not required on Web.");
+      return;
+    }
     if (Platform.isAndroid) {
       final status = await Permission.scheduleExactAlarm.status;
 
@@ -173,43 +178,41 @@ class NotificationManager {
       final List<dynamic> reminders = await Supabase.instance.client
           .from('pay_reminder')
           .select('id, reminder_date, status, parties(partyname)')
-          .eq(
-            'reminder_date',
-            today.toString().split(" ")[0],
-          );
+          .eq('reminder_date', today.toString().split(" ")[0]);
 
       print("📌 Reminders fetched: ${reminders.length}");
 
       for (var reminder in reminders) {
         DateTime reminderDate = DateTime.parse(reminder['reminder_date']);
         // ✅ Ensure reminder is for today
-      if (reminderDate.year == today.year &&
-          reminderDate.month == today.month &&
-          reminderDate.day == today.day) {
-        reminderDate = DateTime(
-          reminderDate.year,
-          reminderDate.month,
-          reminderDate.day,
-          18,
-          35,
-          0,
-        );
-        print("🕒 Updated Reminder Date with Time: $reminderDate");
+        if (reminderDate.year == today.year &&
+            reminderDate.month == today.month &&
+            reminderDate.day == today.day) {
+          reminderDate = DateTime(
+            reminderDate.year,
+            reminderDate.month,
+            reminderDate.day,
+            18,
+            35,
+            0,
+          );
+          print("🕒 Updated Reminder Date with Time: $reminderDate");
 
-        if (!reminderDate.isBefore(now)) {
-          await NotificationManager.scheduleReminderNotification(
-            reminder['id'],
-            "Payment Reminder",
-            "Reminder for ${reminder['parties']['partyname']}",
-            reminderDate,
-          );
+          if (!reminderDate.isBefore(now)) {
+            await NotificationManager.scheduleReminderNotification(
+              reminder['id'],
+              "Payment Reminder",
+              "Reminder for ${reminder['parties']['partyname']}",
+              reminderDate,
+            );
+          } else {
+            print(
+              "❌ Reminder ID ${reminder['id']} is in the past and will not be scheduled.",
+            );
+          }
         } else {
-          print(
-            "❌ Reminder ID ${reminder['id']} is in the past and will not be scheduled.",
-          );
-        }} else {
-        print("⚠️ Skipping reminder ID ${reminder['id']} - Not for today.");
-      }
+          print("⚠️ Skipping reminder ID ${reminder['id']} - Not for today.");
+        }
       }
     } catch (e) {
       print("⚠️ Error fetching reminders from Supabase: $e");

@@ -5,6 +5,11 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:drop_down_list/model/selected_list_item.dart';
 import 'package:drop_down_list/drop_down_list.dart';
+import 'package:flutter_esc_pos_utils/flutter_esc_pos_utils.dart';
+import 'package:flutter_esc_pos_network/flutter_esc_pos_network.dart';
+import 'package:network_info_plus/network_info_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'utils/printersetup.dart';
 
 class SalesEntryScreen extends StatefulWidget {
   const SalesEntryScreen({super.key});
@@ -43,6 +48,7 @@ class _SalesEntryScreenState extends State<SalesEntryScreen> {
   List<Map<String, dynamic>> salesEntries = [];
   String searchQuery = "";
   String? selectedPartyName;
+  String? selectedPrinter;
 
   @override
   void initState() {
@@ -435,7 +441,8 @@ class _SalesEntryScreenState extends State<SalesEntryScreen> {
                   'date': entry['date'].toString(),
                   'invoiceno': entry['invoiceno'].toString(),
                   'party_name': entry['parties']['partyname'].toString(),
-                  'product_name': entry['product_head']['product_name'].toString(),
+                  'product_name':
+                      entry['product_head']['product_name'].toString(),
                   'quantity': entry['quantity'].toString(),
                   'rate': entry['rate'].toString(),
                   'amount': entry['amount'].toString(),
@@ -456,12 +463,240 @@ class _SalesEntryScreenState extends State<SalesEntryScreen> {
     }
   }
 
+  Future<void> _loadSavedPrinter() async {
+    final prefs = await SharedPreferences.getInstance();
+    String? printerIP = prefs.getString('printer_ip');
+
+    debugPrint("🔍 Loaded Printer IP in Sales Entry: $printerIP"); // Debug Log
+
+    setState(() {
+      selectedPrinter = printerIP;
+    });
+  }
+
+  Future<void> printSalesChallan(
+    String invoiceNo,
+    String partyName,
+    List<Map<String, dynamic>> products,
+    double totalAmount,
+  ) async {
+    if (selectedPrinter == null || selectedPrinter!.isEmpty) {
+      Fluttertoast.showToast(
+        msg: "No printer configured. Please set up a printer first.",
+      );
+      return;
+    }
+    debugPrint("🖨️ Printing to: $selectedPrinter"); // Debug Log
+
+    try {
+      var parts = selectedPrinter!.split(':');
+      String ip = parts[0];
+      int port = parts.length > 1 ? int.tryParse(parts[1]) ?? 9100 : 9100;
+
+      final profile = await CapabilityProfile.load();
+      final generator = Generator(PaperSize.mm80, profile);
+      List<int> bytes = [];
+
+      // Printer initialization
+      bytes += generator.reset();
+      bytes += generator.setGlobalCodeTable('CP1252');
+
+      bytes += generator.text(
+        "SALES CHALLAN",
+        styles: PosStyles(
+          align: PosAlign.center,
+          height: PosTextSize.size2,
+          width: PosTextSize.size2,
+        ),
+      );
+      bytes += generator.text(
+        "Invoice: $invoiceNo",
+        styles: PosStyles(align: PosAlign.left),
+      );
+      bytes += generator.text(
+        "Party: $partyName",
+        styles: PosStyles(align: PosAlign.left),
+      );
+      bytes += generator.hr();
+
+      for (var product in products) {
+        bytes += generator.text(
+          "${product['name']} x${product['quantity']}   Rs.${product['price']}",
+          styles: PosStyles(align: PosAlign.left),
+        );
+        bytes += generator.text(
+          "Rs.${(int.parse(product['quantity']) * int.parse(product['price']))}",
+          styles: PosStyles(align: PosAlign.right),
+        );
+      }
+
+      bytes += generator.hr();
+      bytes += generator.text(
+        "Total: Rs.$totalAmount",
+        styles: PosStyles(
+          align: PosAlign.right,
+          height: PosTextSize.size2,
+          width: PosTextSize.size2,
+        ),
+      );
+      bytes += generator.feed(2);
+      bytes += generator.cut();
+
+      final printer = PrinterNetworkManager(
+        ip,
+        port: port,
+        timeout: Duration(seconds: 10),
+      );
+      debugPrint("🔌 Attempting to connect to printer...");
+
+      final PosPrintResult res = await printer.connect();
+
+      if (res == PosPrintResult.success) {
+        debugPrint("✅ Connected successfully, sending print job...");
+        await printer.printTicket(bytes);
+        debugPrint("✅ Print job sent successfully.");
+
+        Fluttertoast.showToast(msg: "Print job sent to printer");
+      } else {
+        debugPrint("❌ Connection failed: ${res.msg}");
+
+        Fluttertoast.showToast(msg: "Printer error: ${res.msg}");
+      }
+      await printer.disconnect();
+      debugPrint("🔌 Disconnected from printer");
+    } catch (e) {
+      debugPrint("‼️ Print error: $e");
+
+      Fluttertoast.showToast(msg: "Print error: ${e.toString()}");
+    }
+  }
+
+  Future<void> printTestReceipt() async {
+    if (selectedPrinter == null || selectedPrinter!.isEmpty) {
+      Fluttertoast.showToast(
+        msg: "❌ No printer configured. Please set up a printer first.",
+      );
+      return;
+    }
+
+    debugPrint("🖨️ Sending TEST receipt to: $selectedPrinter");
+
+    try {
+      final profile = await CapabilityProfile.load();
+      final generator = Generator(PaperSize.mm80, profile);
+      List<int> bytes = [];
+
+      bytes += generator.text(
+        "**TEST PRINT**",
+        styles: PosStyles(
+          align: PosAlign.center,
+          height: PosTextSize.size2,
+          width: PosTextSize.size2,
+        ),
+      );
+      bytes += generator.hr();
+      bytes += generator.text(
+        "Hello from Flutter!",
+        styles: PosStyles(align: PosAlign.center),
+      );
+      bytes += generator.feed(3); // Add empty lines for spacing
+      bytes += generator.cut();
+
+      final printer = PrinterNetworkManager(
+        selectedPrinter!,
+        port: 9100,
+        timeout: Duration(seconds: 10),
+      );
+      final PosPrintResult res = await printer.connect();
+
+      if (res == PosPrintResult.success) {
+        await printer.printTicket(bytes);
+        Fluttertoast.showToast(msg: "✅ Test print successful");
+        debugPrint("✅ Test print job sent successfully.");
+      } else {
+        Fluttertoast.showToast(msg: "⚠️ Printer error: ${res.msg}");
+        debugPrint("⚠️ Printer connection error: ${res.msg}");
+      }
+
+      await printer.disconnect();
+    } catch (e) {
+      debugPrint("❌ Test print error: ${e.toString()}");
+      Fluttertoast.showToast(msg: "❌ Test print error: ${e.toString()}");
+    }
+  }
+
+  /* void showPrinterSetupDialog(BuildContext context) async {
+    TextEditingController ipController = TextEditingController();
+    String? detectedIp = await findPrinterIP();
+
+    if (detectedIp != null) {
+      ipController.text = detectedIp;
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text("Printer Setup"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text("Enter Printer IP:"),
+              TextField(
+                controller: ipController,
+                decoration: InputDecoration(hintText: "e.g., 192.168.1.100"),
+              ),
+              SizedBox(height: 10),
+              Text("Detected IP: ${detectedIp ?? 'Not found'}"),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text("Cancel"),
+            ),
+            TextButton(
+              onPressed: () async {
+                String enteredIp = ipController.text.trim();
+                if (await tryConnectPrinter(enteredIp)) {
+                  await savePrinterIP(enteredIp);
+                  Navigator.pop(context);
+                  Fluttertoast.showToast(msg: "Printer IP saved.");
+                } else {
+                  Fluttertoast.showToast(msg: "Invalid IP, try again.");
+                }
+              },
+              child: Text("Save"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+*/
   double _dividerPosition = 0.7;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Sales Entry')),
+      appBar: AppBar(
+        title: const Text('Sales Entry'),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.print),
+            tooltip: "Setup Printer",
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => PrinterSetupScreen()),
+              ).then((_) {
+                debugPrint("📢 Returning from Printer Setup Screen...");
+                _loadSavedPrinter(); // Reload printer IP
+              });
+            },
+          ),
+        ],
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child:
@@ -671,6 +906,37 @@ class _SalesEntryScreenState extends State<SalesEntryScreen> {
                             ElevatedButton(
                               onPressed: _saveEntry,
                               child: const Text("Save Entry"),
+                            ),
+                            ElevatedButton(
+                              onPressed:
+                                  () => printSalesChallan(
+                                    invoiceNo,
+                                    selectedParty ?? "",
+                                    selectedProducts
+                                        .map(
+                                          (product) => {
+                                            'name': product,
+                                            'quantity':
+                                                qtyControllers[product]?.text ??
+                                                '0',
+                                            'price':
+                                                rateControllers[product]
+                                                    ?.text ??
+                                                '0',
+                                          },
+                                        )
+                                        .toList(),
+                                    amounts.values
+                                        .fold(0, (sum, amount) => sum + amount)
+                                        .toDouble(),
+                                  ),
+                              child: const Text("Print Sales Challan"),
+                            ),
+                            ElevatedButton(
+                              onPressed:
+                                  () =>
+                                      printTestReceipt(), // Change to printRawText() if needed
+                              child: Text("Print Test Receipt"),
                             ),
                           ],
                         ),

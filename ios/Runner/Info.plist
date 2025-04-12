@@ -46,9 +46,18 @@
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UIBackgroundModes</key>
+	<key>NSLocationWhenInUseUsageDescription</key>
+<string>We need access to Wi-Fi information for printer setup.</string>
+
 	<array>
 		<string>fetch</string>
 		<string>remote-notification</string>
 	</array>
+	<key>NSLocalNetworkUsageDescription</key>
+<string>Need network access to connect to printer</string>
+<key>NSBonjourServices</key>
+<array>
+  <string>_printer._tcp</string>
+</array>
 </dict>
 </plist>

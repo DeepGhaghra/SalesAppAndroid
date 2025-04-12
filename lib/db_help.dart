@@ -23,7 +23,7 @@ class DatabaseHelper {
     String path = join(documentsDirectory.path, 'sales_app.db');
     return await openDatabase(
       path,
-      version: 4,
+      version: 6,
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE parties (
@@ -49,24 +49,24 @@ class DatabaseHelper {
           FOREIGN KEY (party_id) REFERENCES parties(id) ON DELETE CASCADE
         )
       ''');
-      },
-      onUpgrade: (db, oldVersion, newVersion) async {
-        if (oldVersion < 4) {
-         await db.execute('''
-            CREATE TABLE IF NOT EXISTS product_head (
+        await db.execute('''
+            CREATE TABLE product_head (
               id INTEGER PRIMARY KEY AUTOINCREMENT,
               product_name TEXT NOT NULL,
               product_rate INTEGER NOT NULL
             )
           ''');
-          // ✅ Copy data from `products` to `product_head`
+      },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 6) {
           await db.execute('''
-            INSERT INTO product_head (id, product_name, product_rate)
-            SELECT id, product_name, product_rate FROM products
+            CREATE TABLE IF NOT EXISTS products_design (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              design_no TEXT NOT NULL,
+              product_head_id INTEGER NOT NULL,
+              FOREIGN KEY (product_head_id) REFERENCES product_head(id) ON DELETE CASCADE
+            )
           ''');
-
-          // ✅ Delete the old `products` table
-          await db.execute('DROP TABLE IF EXISTS products');
         }
       },
     );
@@ -85,6 +85,29 @@ class DatabaseHelper {
     await db.delete('parties');
     for (var name in parties) {
       await db.insert('parties', {'name': name});
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getCachedDesigns() async {
+    if (kIsWeb) return []; // Web: Fetch from Supabase instead
+    Database db = await instance.database;
+    return await db.query(
+      'products_design',
+      columns: ['design_no', 'product_head_id'],
+      orderBy: 'design_no ASC',
+    );
+  }
+
+  Future<void> cachedDesigns(List<Map<String, dynamic>> designs) async {
+    if (kIsWeb) return; // Web: No caching
+    Database db = await instance.database;
+    await db.delete('products_design');
+
+    for (var design in designs) {
+      await db.insert('products_design', {
+        'design_no': design['design_no'],
+        'product_head_id': design['product_head_id'],
+      });
     }
   }
 

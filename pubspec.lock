@@ -129,6 +129,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.0.6"
+  csslib:
+    dependency: transitive
+    description:
+      name: csslib
+      sha256: "09bad715f418841f976c77db72d5398dc1253c21fb9c0c7f0b0b985860b2d58e"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.2"
   cupertino_icons:
     dependency: "direct main"
     description:
@@ -153,6 +161,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.0.0"
+  dropdown_button2:
+    dependency: "direct main"
+    description:
+      name: dropdown_button2
+      sha256: b0fe8d49a030315e9eef6c7ac84ca964250155a6224d491c1365061bc974a9e1
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.3.9"
   dropdown_search:
     dependency: "direct main"
     description:
@@ -246,6 +262,22 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "5.1.2"
+  flutter_esc_pos_network:
+    dependency: "direct main"
+    description:
+      name: flutter_esc_pos_network
+      sha256: "44ca5966c82dd7a2a703a7ff95407c6738fb1d71b7540c137783b374e62a08fd"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.3"
+  flutter_esc_pos_utils:
+    dependency: "direct main"
+    description:
+      name: flutter_esc_pos_utils
+      sha256: "2186973896d2dac3d5ebb2e09dac963001d29cd9e683f23afe8dbd5fb4013356"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.1"
   flutter_lints:
     dependency: "direct dev"
     description:
@@ -320,6 +352,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.4.1"
+  gbk_codec:
+    dependency: transitive
+    description:
+      name: gbk_codec
+      sha256: "3af5311fc9393115e3650ae6023862adf998051a804a08fb804f042724999f61"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.4.0"
   gotrue:
     dependency: transitive
     description:
@@ -336,6 +376,22 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.1.0"
+  hex:
+    dependency: transitive
+    description:
+      name: hex
+      sha256: "4e7cd54e4b59ba026432a6be2dd9d96e4c5205725194997193bf871703b82c4a"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.2.0"
+  html:
+    dependency: transitive
+    description:
+      name: html
+      sha256: "9475be233c437f0e3637af55e7702cbbe5c23a68bd56e8a5fa2d426297b7c6c8"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.15.5+1"
   http:
     dependency: transitive
     description:
@@ -352,6 +408,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "4.1.2"
+  image:
+    dependency: transitive
+    description:
+      name: image
+      sha256: f31d52537dc417fdcde36088fdf11d191026fd5e4fae742491ebd40e5a8bea7d
+      url: "https://pub.dev"
+    source: hosted
+    version: "4.3.0"
   intl:
     dependency: "direct main"
     description:
@@ -448,6 +512,22 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "4.1.3"
+  network_info_plus:
+    dependency: "direct main"
+    description:
+      name: network_info_plus
+      sha256: "08f4166bbb77da9e407edef6322a33f87b18c0ca46483fb25606cb3d2bfcdd2a"
+      url: "https://pub.dev"
+    source: hosted
+    version: "6.1.3"
+  network_info_plus_platform_interface:
+    dependency: transitive
+    description:
+      name: network_info_plus_platform_interface
+      sha256: "7e7496a8a9d8136859b8881affc613c4a21304afeb6c324bcefc4bd0aff6b94b"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.0.2"
   nm:
     dependency: transitive
     description:
