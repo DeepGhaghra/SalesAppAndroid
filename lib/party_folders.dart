@@ -192,6 +192,8 @@ class _PartyFolderScreenState extends State<PartyFolderScreen> {
     return Padding(
       padding: const EdgeInsets.all(8.0),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+
         children: [
           TextField(
             decoration: InputDecoration(
@@ -202,6 +204,7 @@ class _PartyFolderScreenState extends State<PartyFolderScreen> {
             onChanged: (value) {
               setState(() {
                 searchQuery = value;
+                _applyFilters();
               });
             },
           ),
@@ -228,6 +231,13 @@ class _PartyFolderScreenState extends State<PartyFolderScreen> {
               });
             },
           ),
+          if (selectedFolderId != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Parties in Selected Folder : ${filteredParties.length}',
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+          ],
         ],
       ),
     );

@@ -23,7 +23,7 @@ class DatabaseHelper {
     String path = join(documentsDirectory.path, 'sales_app.db');
     return await openDatabase(
       path,
-      version: 6,
+      version: 7,
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE parties (
@@ -56,17 +56,43 @@ class DatabaseHelper {
               product_rate INTEGER NOT NULL
             )
           ''');
+        await db.execute('''
+  CREATE TABLE IF NOT EXISTS folders (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    folder_name TEXT NOT NULL UNIQUE
+  )
+''');
+
+        await db.execute('''
+  CREATE TABLE IF NOT EXISTS products_design (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    design_no TEXT NOT NULL UNIQUE,
+    product_head_id INTEGER NOT NULL,
+    folder_id INTEGER,
+    FOREIGN KEY (product_head_id) REFERENCES product_head(id) ON DELETE CASCADE,
+    FOREIGN KEY (folder_id) REFERENCES folders(id) ON DELETE SET NULL
+  )
+''');
       },
       onUpgrade: (db, oldVersion, newVersion) async {
-        if (oldVersion < 6) {
+        if (oldVersion < 7) {
           await db.execute('''
-            CREATE TABLE IF NOT EXISTS products_design (
-              id INTEGER PRIMARY KEY AUTOINCREMENT,
-              design_no TEXT NOT NULL,
-              product_head_id INTEGER NOT NULL,
-              FOREIGN KEY (product_head_id) REFERENCES product_head(id) ON DELETE CASCADE
-            )
-          ''');
+          CREATE TABLE IF NOT EXISTS folders (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            folder_name TEXT NOT NULL UNIQUE
+          )
+        ''');
+
+        await db.execute('''
+         CREATE TABLE IF NOT EXISTS products_design (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        design_no TEXT NOT NULL UNIQUE,
+        product_head_id INTEGER NOT NULL,
+        folder_id INTEGER,
+        FOREIGN KEY (product_head_id) REFERENCES product_head(id) ON DELETE CASCADE,
+        FOREIGN KEY (folder_id) REFERENCES folders(id) ON DELETE SET NULL
+      )
+    ''');
         }
       },
     );
@@ -111,7 +137,6 @@ class DatabaseHelper {
     }
   }
 
-  // ✅ Get cached products
   Future<List<Map<String, dynamic>>> getCachedProducts() async {
     if (kIsWeb) return []; // ✅ Web: No caching
 
@@ -128,7 +153,6 @@ class DatabaseHelper {
         .toList();
   }
 
-  // ✅ Cache products
   Future<void> cacheProducts(List<Map<String, dynamic>> products) async {
     if (kIsWeb) return; // ✅ Web: No caching
 

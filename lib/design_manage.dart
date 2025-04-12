@@ -392,7 +392,7 @@ class _StockManageScreenState extends State<StockManageScreen> {
                                 child: ListTile(
                                   title: Text(design),
                                   leading: Icon(
-                                    Icons.receipt,
+                                    Icons.view_list,
                                     color: Colors.blue,
                                   ),
                                   trailing: CircularProgressIndicator(),
@@ -409,7 +409,7 @@ class _StockManageScreenState extends State<StockManageScreen> {
                                 child: ListTile(
                                   title: Text(design),
                                   leading: Icon(
-                                    Icons.receipt,
+                                    Icons.view_list,
                                     color: Colors.blue,
                                   ),
                                   trailing: Icon(
@@ -431,7 +431,7 @@ class _StockManageScreenState extends State<StockManageScreen> {
                                 child: ListTile(
                                   title: Text(design),
                                   leading: Icon(
-                                    Icons.receipt,
+                                    Icons.view_list,
                                     color: Colors.blue,
                                   ),
                                   trailing: Text("No Product"),
@@ -458,7 +458,7 @@ class _StockManageScreenState extends State<StockManageScreen> {
                                     child: ListTile(
                                       title: Text(design),
                                       leading: Icon(
-                                        Icons.receipt,
+                                        Icons.view_list,
                                         color: Colors.blue,
                                       ),
                                       trailing: CircularProgressIndicator(),
@@ -477,7 +477,7 @@ class _StockManageScreenState extends State<StockManageScreen> {
                                     child: ListTile(
                                       title: Text(design),
                                       leading: Icon(
-                                        Icons.receipt,
+                                        Icons.view_list,
                                         color: Colors.blue,
                                       ),
                                       trailing: Row(
@@ -525,7 +525,7 @@ class _StockManageScreenState extends State<StockManageScreen> {
                                       child: ListTile(
                                         title: Text(design),
                                         leading: Icon(
-                                          Icons.receipt,
+                                          Icons.view_list,
                                           color: Colors.blue,
                                         ),
                                         trailing: Row(
