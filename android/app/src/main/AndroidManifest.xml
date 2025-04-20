@@ -6,6 +6,9 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.VIBRATE"/>
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+
 
     <!-- Needed for Android 10+ -->
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"/>
@@ -16,6 +19,17 @@
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:requestLegacyExternalStorage="true">
+        <receiver android:name="me.carda.awesome_notifications.notifications.receivers.NotificationReceiver" />
+        <receiver android:name="me.carda.awesome_notifications.notifications.receivers.ActionReceiver" />
+        <receiver android:name="me.carda.awesome_notifications.notifications.receivers.DismissedReceiver" />
+        <receiver
+            android:name="me.carda.awesome_notifications.notifications.receivers.RebootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
+            </intent-filter>
+        </receiver>
         <activity
             android:name=".MainActivity"
             android:exported="true"
