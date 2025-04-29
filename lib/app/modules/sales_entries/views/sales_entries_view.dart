@@ -64,7 +64,7 @@ class SalesEntriesView extends GetView<SalesEntriesController> {
                 MultiSelectSearchDropdown(
                   labelText: "Select Product",
                   items:
-                      controller.productList.map((element) {
+                      controller.designList.map((element) {
                         return MultiSelectItemModel( name: element);
                       }).toList(),
                   onSelectionChanged:
@@ -237,7 +237,7 @@ class SalesEntriesView extends GetView<SalesEntriesController> {
         padding: const EdgeInsets.all(10.0),
         child: MultiSelectDialogField(
           items:
-              controller.productList.map((p) => MultiSelectItem(p, p)).toList(),
+              controller.designList.map((p) => MultiSelectItem(p, p)).toList(),
           title: const Text(
             "Select Products",
             style: TextStyle(color: AppColors.textBlackDark),

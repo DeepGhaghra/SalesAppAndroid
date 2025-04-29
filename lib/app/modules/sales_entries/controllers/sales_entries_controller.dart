@@ -3,7 +3,6 @@ import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-
 import '../model/ PartyInfp.dart';
 import '../repository/sales_entries_repository.dart';
 
@@ -23,18 +22,21 @@ class SalesEntriesController extends GetxController {
   final amounts = <String, int>{}.obs;
   final rateFieldColor = <String, Color>{}.obs;
 
-  final SalesEntriesRepository _salesEntriesRepository = SalesEntriesRepository();
+  final SalesEntriesRepository _salesEntriesRepository =
+      SalesEntriesRepository();
 
   // RxList<String> partyList = <String>[].obs;
 
   RxList<PartyInfo> partyList = RxList();
 
   RxList<String> productList = <String>[].obs;
+  RxList<String> designList = <String>[].obs;
+
   final partyMap = <String, String>{};
   final productMap = <String, String>{};
   final priceList = <String, Map<String, int>>{};
   final productRates = <String, int>{};
-
+  final designMap = <String, String>{};
   RxBool isLoading = true.obs;
 
   RxList<Map<String, dynamic>> salesEntries = <Map<String, dynamic>>[].obs;
@@ -46,8 +48,6 @@ class SalesEntriesController extends GetxController {
     loadData();
     fetchRecentSales();
   }
-
-
 
   // Fetch parties and sort by partyName
   Future<void> fetchParties() async {
@@ -77,6 +77,7 @@ class SalesEntriesController extends GetxController {
       final partyResponse = await supabase.from('parties').select();
       final productResponse = await supabase.from('product_head').select();
       final priceResponse = await supabase.from('pricelist').select();
+      final designResponse = await supabase.from('products_design').select();
 
       fetchParties();
 
@@ -89,10 +90,11 @@ class SalesEntriesController extends GetxController {
       // }).toList();
       // partyList.sort();
 
-      productList.value = productResponse.map<String>((p) {
-        productMap[p['product_name']] = p['id'].toString();
-        return p['product_name'].toString();
-      }).toList();
+      productList.value =
+          productResponse.map<String>((p) {
+            productMap[p['product_name']] = p['id'].toString();
+            return p['product_name'].toString();
+          }).toList();
 
       for (var product in productResponse) {
         productRates[product['product_name']] = product['product_rate'];
@@ -105,6 +107,14 @@ class SalesEntriesController extends GetxController {
 
         priceList[partyId] ??= {};
         priceList[partyId]![productId] = rate;
+        designList.value =
+            designResponse.map<String>((d) {
+              designMap[d['design_no']] =
+                  d['id'].toString(); // ID lookup if needed
+              return d['design_no'].toString();
+            }).toList();
+
+        designList.sort();
       }
     } catch (e) {
       debugPrint('Error loading data: $e');
@@ -132,7 +142,6 @@ class SalesEntriesController extends GetxController {
     } else {
       rates[product] = 0;
     }
-
 
     calculateAmount(product);
   }
@@ -166,18 +175,20 @@ class SalesEntriesController extends GetxController {
           .order('date', ascending: false);
 
       if (response != null) {
-        salesEntries.value = response.map<Map<String, dynamic>>((entry) {
-          return {
-            'id': entry['id'].toString(),
-            'date': entry['date'].toString(),
-            'invoiceno': entry['invoiceno'].toString(),
-            'party_name': entry['parties']['partyname'].toString(),
-            'product_name': entry['product_head']['product_name'].toString(),
-            'quantity': entry['quantity'].toString(),
-            'rate': entry['rate'].toString(),
-            'amount': entry['amount'].toString(),
-          };
-        }).toList();
+        salesEntries.value =
+            response.map<Map<String, dynamic>>((entry) {
+              return {
+                'id': entry['id'].toString(),
+                'date': entry['date'].toString(),
+                'invoiceno': entry['invoiceno'].toString(),
+                'party_name': entry['parties']['partyname'].toString(),
+                'product_name':
+                    entry['product_head']['product_name'].toString(),
+                'quantity': entry['quantity'].toString(),
+                'rate': entry['rate'].toString(),
+                'amount': entry['amount'].toString(),
+              };
+            }).toList();
       }
     } catch (e) {
       debugPrint('Error fetching recent sales: $e');
