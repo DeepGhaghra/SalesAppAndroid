@@ -45,6 +45,7 @@ class SalesEntriesView extends GetView<SalesEntriesController> {
 
                 SearchableDropdown(
                   labelText: "Select Party",
+                  hintText: "Select Party",
 
                   items:
                       controller.partyList.map((element) {
@@ -52,30 +53,36 @@ class SalesEntriesView extends GetView<SalesEntriesController> {
                       }).toList(),
 
                   onItemSelected: (Item selectedItem) {
-
-
                     controller.selectedPartyName.value = selectedItem.name;
-                    controller.selectedParty.value = controller.partyMap[selectedItem.name] ?? "";
+                    controller.selectedParty.value =
+                        controller.partyMap[selectedItem.name] ?? "";
                     print(selectedItem.name);
                   },
                 ),
 
                 const SizedBox(height: 20),
                 MultiSelectSearchDropdown(
-                  labelText: "Select Product",
+                  labelText: "Select Designs",
                   items:
                       controller.designList.map((element) {
-                        return MultiSelectItemModel( name: element);
+                        return MultiSelectItemModel(name: element);
                       }).toList(),
-                  onSelectionChanged:
-                      (List<MultiSelectItemModel> selectedItems) {
-
-                        controller.onProductSelected(selectedItems.map((e) {
-                          return e.name;
-                        },).toList());
-                      }, selectedItems: controller.selectedProducts.map((element) {
-                        return MultiSelectItemModel(name: element , isSelected: true);
-                      },).toList(),
+                  onSelectionChanged: (
+                    List<MultiSelectItemModel> selectedItems,
+                  ) {
+                    controller.onProductSelected(
+                      selectedItems.map((e) {
+                        return e.name;
+                      }).toList(),
+                    );
+                  },
+                  selectedItems:
+                      controller.selectedProducts.map((element) {
+                        return MultiSelectItemModel(
+                          name: element,
+                          isSelected: true,
+                        );
+                      }).toList(),
                 ),
                 // _buildPartySelector(context),
                 const SizedBox(height: 20),
@@ -127,7 +134,7 @@ class SalesEntriesView extends GetView<SalesEntriesController> {
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8.0,horizontal: 8),
+        padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 8),
         child: Row(
           children: [
             Text(

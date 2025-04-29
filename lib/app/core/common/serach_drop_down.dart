@@ -18,8 +18,8 @@ class SearchableDropdown extends StatefulWidget {
     Key? key,
     required this.items,
     required this.onItemSelected,
-    this.hintText = "Select item",
-    this.labelText = "Select Item", // default label
+    this.hintText = "Please select an option",
+    this.labelText = "Please select an option", // default label
   }) : super(key: key);
 
   @override

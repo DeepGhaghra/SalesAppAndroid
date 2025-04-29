@@ -23,7 +23,7 @@ class MultiSelectSearchDropdown extends StatefulWidget {
     required this.items,
     required this.onSelectionChanged,
     required this.selectedItems,
-    this.labelText = "Select Items",
+    this.labelText = "Select Multioptions",
   }) : super(key: key);
 
   @override
