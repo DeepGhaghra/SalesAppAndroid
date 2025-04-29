@@ -10,15 +10,17 @@ class StockController extends GetxController {
 
   final RxList<Map<String, dynamic>> stockData = <Map<String, dynamic>>[].obs;
   final RxBool isLoading = false.obs;
+  void onInit() {
+    super.onInit();
+    fetchStock('');
+  }
 
   Future<void> fetchStock(String searchTerm) async {
     isLoading.value = true;
     final response = await Supabase.instance.client
         .from('stock')
-        .select('product_head(product_name), quantity, locations(name)')
-        .ilike('product_head.product_name', '%$searchTerm%')
-        .order('product_head.product_name');
-
+        .select('quantity, design_id!inner(design_no), location_id(name)')
+        .ilike('design_id.design_no', '%$searchTerm%');
     stockData.value = List<Map<String, dynamic>>.from(response);
     isLoading.value = false;
   }
@@ -29,21 +31,21 @@ class StockController extends GetxController {
     final location = locationController.text;
 
     if (product.isEmpty || quantity <= 0 || location.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Please enter valid details!')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Please enter valid details!')));
       return;
     }
 
     await Supabase.instance.client.from('stock').insert({
-      'product_id': product,
+      'design_id': int.parse(product), // Assuming design_id is numeric
       'quantity': quantity,
-      'location_id': location,
+      'location_id': int.parse(location),
     });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Stock added successfully!')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('Stock added successfully!')));
 
     productController.clear();
     quantityController.clear();
