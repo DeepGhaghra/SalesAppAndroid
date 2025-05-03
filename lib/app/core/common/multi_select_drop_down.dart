@@ -73,25 +73,26 @@ class _MultiSelectSearchDropdownState extends State<MultiSelectSearchDropdown> {
 
   OverlayEntry _createOverlay() {
     return OverlayEntry(
-      builder: (context) => Positioned(
-        width: MediaQuery.of(context).size.width - 32,
-        child: CompositedTransformFollower(
-          offset: const Offset(0, 55),
-          link: _layerLink,
-          showWhenUnlinked: false,
-          child: _DropdownPopup(
-            allItems: widget.items,
-            initiallySelected: widget.selectedItems,
-            onSelectionChanged: (items) {
-              setState(() {
-                widget.selectedItems = items;
-              });
-              widget.onSelectionChanged(widget.selectedItems);
-            },
-            closeDropdown: _toggleDropdown,
+      builder:
+          (context) => Positioned(
+            width: MediaQuery.of(context).size.width - 32,
+            child: CompositedTransformFollower(
+              offset: const Offset(0, 55),
+              link: _layerLink,
+              showWhenUnlinked: false,
+              child: _DropdownPopup(
+                allItems: widget.items,
+                initiallySelected: widget.selectedItems,
+                onSelectionChanged: (items) {
+                  setState(() {
+                    widget.selectedItems = items;
+                  });
+                  widget.onSelectionChanged(widget.selectedItems);
+                },
+                closeDropdown: _toggleDropdown,
+              ),
+            ),
           ),
-        ),
-      ),
     );
   }
 
@@ -109,9 +110,10 @@ class _MultiSelectSearchDropdownState extends State<MultiSelectSearchDropdown> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Moving label outside the container
-
-
-        Text(widget.labelText, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+        Text(
+          widget.labelText,
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+        ),
         const SizedBox(height: 5),
         CompositedTransformTarget(
           link: _layerLink,
@@ -129,31 +131,41 @@ class _MultiSelectSearchDropdownState extends State<MultiSelectSearchDropdown> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   widget.selectedItems.isEmpty
-                      ? const Text("Select...", style: TextStyle(color: Colors.black54))
+                      ? const Text(
+                        "Select...",
+                        style: TextStyle(color: Colors.black54),
+                      )
                       : Wrap(
-                    spacing: 8,
-                    runSpacing: -8,
-                    children: widget.selectedItems.map((item) {
-                      final randomColor = colorPool[Random().nextInt(colorPool.length)];
-                      return Chip(
-                        backgroundColor: randomColor.withOpacity(0.2),
-                        label: Text(
-                          item.name,
-                          style: TextStyle(color: randomColor),
-                        ),
-                        deleteIcon: const Icon(Icons.close, size: 18),
-                        onDeleted: () {
-                          setState(() {
-                            widget.selectedItems.remove(item);
-                          });
-                          widget.onSelectionChanged(widget.selectedItems);
-                        },
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                      );
-                    }).toList(),
-                  ),
+                        spacing: 8,
+                        runSpacing: -8,
+                        children:
+                            widget.selectedItems.map((item) {
+                              final randomColor =
+                                  colorPool[Random().nextInt(colorPool.length)];
+                              return Chip(
+                                backgroundColor: randomColor.withOpacity(0.2),
+                                label: Text(
+                                  item.name,
+                                  style: TextStyle(
+                                    color: randomColor,
+                                    fontSize: 12.0,
+                                  ),
+                                ),
+                                deleteIcon: const Icon(Icons.close, size: 18),
+                                onDeleted: () {
+                                  setState(() {
+                                    widget.selectedItems.remove(item);
+                                  });
+                                  widget.onSelectionChanged(
+                                    widget.selectedItems,
+                                  );
+                                },
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                              );
+                            }).toList(),
+                      ),
                 ],
               ),
             ),
@@ -200,9 +212,14 @@ class _DropdownPopupState extends State<_DropdownPopup> {
     if (_debounce?.isActive ?? false) _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 300), () {
       setState(() {
-        filteredItems = widget.allItems
-            .where((item) => item.name.toLowerCase().contains(searchController.text.toLowerCase()))
-            .toList();
+        filteredItems =
+            widget.allItems
+                .where(
+                  (item) => item.name.toLowerCase().contains(
+                    searchController.text.toLowerCase(),
+                  ),
+                )
+                .toList();
       });
     });
   }
@@ -247,8 +264,9 @@ class _DropdownPopupState extends State<_DropdownPopup> {
                   final item = filteredItems[index];
 
                   // Check if the current item's name is in the selected items' names
-                  final isSelected = tempSelectedItems
-                      .any((selectedItem) => selectedItem.name == item.name);
+                  final isSelected = tempSelectedItems.any(
+                    (selectedItem) => selectedItem.name == item.name,
+                  );
 
                   return ListTile(
                     onTap: () {
@@ -278,15 +296,16 @@ class _DropdownPopupState extends State<_DropdownPopup> {
               ),
             ),
 
-
             ElevatedButton(
-
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primaryColor,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
-                padding: const EdgeInsets.symmetric(vertical: 10,horizontal: 30),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 10,
+                  horizontal: 30,
+                ),
               ),
               onPressed: () {
                 widget.onSelectionChanged(tempSelectedItems);
