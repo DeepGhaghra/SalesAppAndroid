@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
+import 'package:sales_app/app/modules/stock_view/repository/stock_repository.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-
-import '../model/ PartyInfp.dart';
+import '../model/PartyInfo.dart';
+import '../../stock_view/model/StockList.dart';
 import '../repository/sales_entries_repository.dart';
 
 class SalesEntriesController extends GetxController {
@@ -25,12 +26,13 @@ class SalesEntriesController extends GetxController {
   final SalesEntriesRepository _salesEntriesRepository =
       SalesEntriesRepository();
 
+  final StockRepository _stockRepository = StockRepository();
   // RxList<String> partyList = <String>[].obs;
 
   RxList<PartyInfo> partyList = RxList();
+  RxList<StockList> designList = RxList();
 
   RxList<String> productList = <String>[].obs;
-  RxList<String> designList = <String>[].obs;
 
   final partyMap = <String, String>{};
   final productMap = <String, String>{};
@@ -71,16 +73,35 @@ class SalesEntriesController extends GetxController {
     }
   }
 
+  // Fetch parties and sort by partyName
+  Future<void> fetchStocks() async {
+    try {
+      final designResponse = await _stockRepository.fetchStockList();
+    print("Fetched designs: ${designResponse.length} items"); // Debug print
+    if (designResponse.isEmpty) {
+      print("WARNING: Design list is empty!");
+    } else {
+      print("First design: ${designResponse.first.designNo}");
+    }
+
+      // Update designlist with fetched data and sort
+      designList.value = designResponse;
+      designList.sort((a, b) => a.designNo.compareTo(b.designNo));
+    } catch (e) {
+      print('Error in stockController while fetching stocks: $e');
+    }
+  }
+
   Future<void> loadData() async {
     try {
       isLoading.value = true;
-      final partyResponse = await supabase.from('parties').select();
+      //final partyResponse = await supabase.from('parties').select();
       final productResponse = await supabase.from('product_head').select();
       final priceResponse = await supabase.from('pricelist').select();
-      final designResponse = await supabase.from('products_design').select();
+      //final designResponse = await supabase.from('products_design').select();
 
       fetchParties();
-
+fetchStocks();
       getTotalCount();
 
       // partyList.value = partyResponse.map<String>((p) {
@@ -107,14 +128,6 @@ class SalesEntriesController extends GetxController {
 
         priceList[partyId] ??= {};
         priceList[partyId]![productId] = rate;
-        designList.value =
-            designResponse.map<String>((d) {
-              designMap[d['design_no']] =
-                  d['id'].toString(); // ID lookup if needed
-              return d['design_no'].toString();
-            }).toList();
-
-        designList.sort();
       }
     } catch (e) {
       debugPrint('Error loading data: $e');
@@ -134,6 +147,8 @@ class SalesEntriesController extends GetxController {
 
     if (partySpecificRate != null) {
       rates[product] = partySpecificRate;
+      rateControllers[product]?.text = partySpecificRate.toString();
+
       rateFieldColor[product] = Colors.white;
     } else if (baseRate != null) {
       rates[product] = baseRate;
@@ -152,13 +167,12 @@ class SalesEntriesController extends GetxController {
     amounts[product] = qty * rate;
   }
 
-  void onProductSelected(List<String> products) {
-    selectedProducts.value = products;
-    for (var product in products) {
-      qtyControllers[product] ??= TextEditingController();
-
-      rateControllers[product] ??= TextEditingController();
-      updateRate(product);
+  void onProductSelected(List<String> designNumbers) {
+    selectedProducts.value = designNumbers;
+    for (var designNo in designNumbers) {
+      qtyControllers[designNo] ??= TextEditingController();
+      rateControllers[designNo] ??= TextEditingController();
+      updateRate(designNo);
     }
   }
 

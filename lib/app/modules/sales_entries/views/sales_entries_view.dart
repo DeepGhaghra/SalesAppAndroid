@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:multi_select_flutter/dialog/multi_select_dialog_field.dart';
 import 'package:multi_select_flutter/util/multi_select_item.dart';
+import 'package:sales_app/app/modules/stock_view/model/StockList.dart';
 
 import '../../../core/common/multi_select_drop_down.dart';
 import '../../../core/common/serach_drop_down.dart';
@@ -65,7 +66,7 @@ class SalesEntriesView extends GetView<SalesEntriesController> {
                   labelText: "Select Designs",
                   items:
                       controller.designList.map((element) {
-                        return MultiSelectItemModel(name: element);
+                        return MultiSelectItemModel(name: element.designNo);
                       }).toList(),
                   onSelectionChanged: (
                     List<MultiSelectItemModel> selectedItems,
@@ -236,15 +237,19 @@ class SalesEntriesView extends GetView<SalesEntriesController> {
 
   // Product Selector UI (multi-select)
   Widget _buildProductSelector() {
+      print("Building product selector with ${controller.designList.length} designs"); // Debug print
+
     return Card(
       color: AppColors.tableItem,
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
         padding: const EdgeInsets.all(10.0),
-        child: MultiSelectDialogField(
+        child: MultiSelectDialogField<StockList>(
           items:
-              controller.designList.map((p) => MultiSelectItem(p, p)).toList(),
+              controller.designList
+                  .map((p) => MultiSelectItem<StockList>(p, p.designNo))
+                  .toList(),
           title: const Text(
             "Select Products",
             style: TextStyle(color: AppColors.textBlackDark),
@@ -253,8 +258,18 @@ class SalesEntriesView extends GetView<SalesEntriesController> {
             "Choose Products",
             style: TextStyle(color: AppColors.textGrey),
           ),
-          initialValue: controller.selectedProducts,
-          onConfirm: controller.onProductSelected,
+          initialValue:
+              controller.designList
+                  .where(
+                    (design) =>
+                        controller.selectedProducts.contains(design.designNo),
+                  )
+                  .toList(),
+          onConfirm: (List<StockList> selectedDesigns) {
+            controller.onProductSelected(
+              selectedDesigns.map((design) => design.designNo).toList(),
+            );
+          },
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(5),
             border: Border.all(color: AppColors.primaryColor),

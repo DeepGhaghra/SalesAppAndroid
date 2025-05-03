@@ -1,12 +1,8 @@
-
-
 import '../../../data/service/supabase_service.dart';
-import '../model/ PartyInfp.dart';
+import '../model/PartyInfo.dart';
 
-class SalesEntriesRepository{
-
+class SalesEntriesRepository {
   final SupabaseService _supabaseService = SupabaseService();
-
 
   Future<List<PartyInfo>> fetchParties() async {
     try {
@@ -17,7 +13,6 @@ class SalesEntriesRepository{
       rethrow;
     }
   }
-
 
   Future<int> getTotalCount() async {
     try {
