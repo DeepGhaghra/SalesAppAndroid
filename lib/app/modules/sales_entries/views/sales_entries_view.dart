@@ -66,7 +66,10 @@ class SalesEntriesView extends GetView<SalesEntriesController> {
                   labelText: "Select Designs",
                   items:
                       controller.designList.map((element) {
-                        return MultiSelectItemModel(name: element.designNo);
+                        return MultiSelectItemModel(
+                          name:
+                              "${element.designNo} - ${element.location ?? 'N/A'} - ${element.qtyAtLocation?.toString() ?? '0'}",
+                        );
                       }).toList(),
                   onSelectionChanged: (
                     List<MultiSelectItemModel> selectedItems,
@@ -237,8 +240,6 @@ class SalesEntriesView extends GetView<SalesEntriesController> {
 
   // Product Selector UI (multi-select)
   Widget _buildProductSelector() {
-      print("Building product selector with ${controller.designList.length} designs"); // Debug print
-
     return Card(
       color: AppColors.tableItem,
       elevation: 4,
@@ -251,11 +252,11 @@ class SalesEntriesView extends GetView<SalesEntriesController> {
                   .map((p) => MultiSelectItem<StockList>(p, p.designNo))
                   .toList(),
           title: const Text(
-            "Select Products",
+            "Select Design",
             style: TextStyle(color: AppColors.textBlackDark),
           ),
           buttonText: const Text(
-            "Choose Products",
+            "Choose Designs",
             style: TextStyle(color: AppColors.textGrey),
           ),
           initialValue:

@@ -3,14 +3,14 @@ class StockList {
   final String id;
   final String locationid;
   final String location;
-  final String qty;
+  final String qtyAtLocation;
 
   StockList({
     required this.designNo,
     required this.id,
     required this.locationid,
     required this.location,
-    required this.qty,
+    required this.qtyAtLocation,
   });
 
   // Convert JSON to Stocklist instance
@@ -29,7 +29,7 @@ class StockList {
           (locations != null && locations['name'] != null)
               ? locations['name'].toString()
               : 'Unknown',
-      qty: json['quantity'].toString(),
+      qtyAtLocation: json['quantity'].toString(),
     );
   }
 }

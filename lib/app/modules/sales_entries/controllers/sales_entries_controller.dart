@@ -77,12 +77,11 @@ class SalesEntriesController extends GetxController {
   Future<void> fetchStocks() async {
     try {
       final designResponse = await _stockRepository.fetchStockList();
-    print("Fetched designs: ${designResponse.length} items"); // Debug print
-    if (designResponse.isEmpty) {
-      print("WARNING: Design list is empty!");
-    } else {
-      print("First design: ${designResponse.first.designNo}");
-    }
+      if (designResponse.isEmpty) {
+        print("WARNING: Design list is empty!");
+      } else {
+        print("First design: ${designResponse.first.designNo}");
+      }
 
       // Update designlist with fetched data and sort
       designList.value = designResponse;
@@ -100,9 +99,9 @@ class SalesEntriesController extends GetxController {
       final priceResponse = await supabase.from('pricelist').select();
       //final designResponse = await supabase.from('products_design').select();
 
-      fetchParties();
-fetchStocks();
-      getTotalCount();
+      await fetchParties();
+      await fetchStocks();
+      await getTotalCount();
 
       // partyList.value = partyResponse.map<String>((p) {
       //   final name = p['partyname'].toString();
@@ -116,6 +115,7 @@ fetchStocks();
             productMap[p['product_name']] = p['id'].toString();
             return p['product_name'].toString();
           }).toList();
+      productList.sort();
 
       for (var product in productResponse) {
         productRates[product['product_name']] = product['product_rate'];
