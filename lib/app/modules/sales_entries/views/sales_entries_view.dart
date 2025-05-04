@@ -68,7 +68,7 @@ class SalesEntriesView extends GetView<SalesEntriesController> {
                       controller.designList.map((element) {
                         return MultiSelectItemModel(
                           name:
-                              "${element.designNo} - ${element.location ?? 'N/A'} - ${element.qtyAtLocation?.toString() ?? '0'}",
+                              "${element.designNo} || ${element.location ?? 'N/A'} || ${element.qtyAtLocation?.toString() ?? '0'}",
                         );
                       }).toList(),
                   onSelectionChanged: (
@@ -120,6 +120,42 @@ class SalesEntriesView extends GetView<SalesEntriesController> {
                   },
                   child: const Text(
                     "Save Entry",
+                    style: TextStyle(fontSize: 16, color: Colors.white),
+                  ),
+                ),
+                const SizedBox(height: 30),
+
+                // Challan Button
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primaryColor,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                  onPressed: () {
+                    String invoiceNo = controller.invoiceNo.value;
+                    String? partyName = controller.selectedPartyName.value;
+                    List<Map<String, dynamic>> products =
+                        controller.selectedProducts.map((product) {
+                          return {
+                            'product_name':
+                                product,
+                            'quantity':
+                                controller.qtyControllers[product]?.text ?? '0',
+                            'rate':
+                                controller.rateControllers[product]?.text ??
+                                '0',
+                            'amount': controller.amounts[product] ?? 0,
+                          };
+                        }).toList();
+
+                    // Call the print function
+                    controller.printSalesEntry(invoiceNo, partyName, products);
+                  },
+                  child: const Text(
+                    "Print Challan",
                     style: TextStyle(fontSize: 16, color: Colors.white),
                   ),
                 ),

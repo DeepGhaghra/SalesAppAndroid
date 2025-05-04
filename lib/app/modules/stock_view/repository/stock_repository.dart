@@ -8,9 +8,14 @@ class StockRepository {
 
   Future<List<StockList>> fetchStockList() async {
     try {
-      final response = await _supabase
-          .from('stock')
-          .select('*, products_design!inner(*), locations!inner(*)');
+      final response = await _supabase.from('stock')
+      .select('''
+          *, products_design!inner(*,
+            product_head:product_head_id(*,
+            folder:folder_id(folder_name            ))
+          ),
+          locations!inner(*)
+        ''');
       return response.map<StockList>((p) => StockList.fromJson(p)).toList();
     } catch (e) {
       print('Error in StockRepository: $e');

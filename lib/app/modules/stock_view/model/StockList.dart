@@ -4,6 +4,7 @@ class StockList {
   final String locationid;
   final String location;
   final String qtyAtLocation;
+  final String folderName;
 
   StockList({
     required this.designNo,
@@ -11,12 +12,16 @@ class StockList {
     required this.locationid,
     required this.location,
     required this.qtyAtLocation,
+    required this.folderName,
   });
 
   // Convert JSON to Stocklist instance
   factory StockList.fromJson(Map<String, dynamic> json) {
     final productsDesign = json['products_design'];
     final locations = json['locations'];
+    final productHead =
+        productsDesign != null ? productsDesign['product_head'] : null;
+    final folder = productHead != null ? productHead['folder'] : null;
 
     return StockList(
       designNo:
@@ -30,6 +35,10 @@ class StockList {
               ? locations['name'].toString()
               : 'Unknown',
       qtyAtLocation: json['quantity'].toString(),
+      folderName:
+          (folder != null && folder['folder_name'] != null)
+              ? folder['folder_name'].toString()
+              : 'N/A',
     );
   }
 }

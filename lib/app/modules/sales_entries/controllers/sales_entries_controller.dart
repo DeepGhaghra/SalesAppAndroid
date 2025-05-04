@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../model/PartyInfo.dart';
 import '../../stock_view/model/StockList.dart';
 import '../repository/sales_entries_repository.dart';
+import 'dart:html' as html;
 
 class SalesEntriesController extends GetxController {
   final supabase = Supabase.instance.client;
@@ -174,6 +175,155 @@ class SalesEntriesController extends GetxController {
       rateControllers[designNo] ??= TextEditingController();
       updateRate(designNo);
     }
+  }
+
+  void printSalesEntry(
+    String invoiceNo,
+    String? partyName,
+    List<Map<String, dynamic>> products,
+  ) {
+    // Create HTML content with the format similar to the image
+    StringBuffer htmlContent = StringBuffer();
+
+    // Basic HTML structure with styling
+    htmlContent.writeln('''
+    <html>
+    <head>
+      <title>Sales Challan</title>
+      <style>
+        body {
+          font-family: Arial, sans-serif;
+          margin: 0;
+          padding: 10px;
+        }
+        .header {
+          text-align: center;
+          margin-bottom: 20px;
+        }
+        .title {
+          font-size: 18px;
+          font-weight: bold;
+          margin-bottom: 5px;
+        }
+        .subtitle {
+          font-size: 14px;
+        }
+        .party-info {
+          margin-bottom: 15px;
+        }
+        table {
+          width: 100%;
+          border-collapse: collapse;
+          margin-top: 10px;
+        }
+        th, td {
+          border: 1px solid black;
+          padding: 5px;
+          text-align: center;
+        }
+        th {
+          background-color: #f2f2f2;
+        }
+        .total {
+          font-weight: bold;
+          margin-top: 10px;
+          text-align: right;
+        }
+        .footer {
+          margin-top: 30px;
+          display: flex;
+          justify-content: space-between;
+        }
+      </style>
+    </head>
+    <body>
+  ''');
+
+    // Header section
+    htmlContent.writeln('''
+    <div class="header">
+      <div class="title">P/L</div>
+      <div class="subtitle">ESTIMATE</div>
+      <div class="subtitle">Transport:</div>
+    </div>
+  ''');
+
+    // Party information
+    htmlContent.writeln('''
+    <div class="party-info">
+      <div><strong>M/s:</strong> ${partyName ?? 'N/A'}</div>
+      <div><strong>Date:</strong> ${DateFormat('dd/MM/yyyy').format(DateTime.now())}</div>
+    </div>
+  ''');
+
+    // Products table
+    htmlContent.writeln('''
+    <table>
+      <tr>
+        <th>No.</th>
+        <th>Brand</th>
+        <th>Location</th>
+        <th>Design No.</th>
+        <th>Qty</th>
+      </tr>
+  ''');
+    // Add products to the table
+    int totalQty = 0;
+    for (int i = 0; i < products.length; i++) {
+      var product = products[i];
+
+      // Parse the product name to extract components (assuming format from your MultiSelectSearchDropdown)
+      String productName = product['product_name'];
+      List<String> parts = productName.split(' || ');
+      String designNo = parts.isNotEmpty ? parts[0] : productName;
+      String location = parts.length > 1 ? parts[1] : 'N/A';
+      String brand = 'N/A';
+      for (var design in designList) {
+        if (design.designNo == designNo) {
+          brand = design.folderName;
+          break;
+        }
+      }
+
+      int qty = int.tryParse(product['quantity'] ?? '0') ?? 0;
+      totalQty += qty;
+
+      htmlContent.writeln('''
+      <tr>
+        <td>${i + 1}</td>
+        <td>$brand</td>
+        <td>$location</td>
+        <td>$designNo</td>
+        <td>$qty</td>
+      </tr>
+    ''');
+    }
+
+    // Close table and add total
+    htmlContent.writeln('''
+    </table>
+    <div class="total">Total $totalQty</div>
+  ''');
+
+    // Footer section
+    htmlContent.writeln('''
+    <div class="footer">
+      <div>Receiver's Signature</div>
+      <div>Authorized Signature</div>
+    </div>
+  ''');
+
+    // Close HTML
+    htmlContent.writeln('</body></html>');
+
+    // Create a Blob and trigger the print dialog
+    final blob = html.Blob([htmlContent.toString()], 'text/html');
+    final url = html.Url.createObjectUrlFromBlob(blob);
+    final anchor =
+        html.AnchorElement(href: url)
+          ..setAttribute('target', '_blank')
+          ..click();
+    html.Url.revokeObjectUrl(url);
   }
 
   Future<void> fetchRecentSales() async {
