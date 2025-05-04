@@ -158,7 +158,6 @@ class SalesEntriesController extends GetxController {
     } else {
       rates[product] = 0;
     }
-
     calculateAmount(product);
   }
 

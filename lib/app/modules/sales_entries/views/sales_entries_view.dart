@@ -135,13 +135,82 @@ class SalesEntriesView extends GetView<SalesEntriesController> {
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
                   onPressed: () {
+                    // Validation checks
+                    if ((controller.selectedPartyName.value ?? '').isEmpty) {
+                      Get.snackbar(
+                        'Error',
+                        'Please select a party',
+                        snackPosition: SnackPosition.BOTTOM,
+                        backgroundColor: Colors.red,
+                        colorText: Colors.white,
+                      );
+                      return;
+                    }
+
+                    if (controller.selectedProducts.isEmpty) {
+                      Get.snackbar(
+                        'Error',
+                        'Please select atleast one design',
+                        snackPosition: SnackPosition.BOTTOM,
+                        backgroundColor: Colors.red,
+                        colorText: Colors.white,
+                      );
+                      return;
+                    }
+
+                    // Check all selected products have quantity > 0
+                    bool hasInvalidQuantity = false;
+                    for (var product in controller.selectedProducts) {
+                      final qty =
+                          controller.qtyControllers[product]?.text ?? '';
+                      if (qty.isEmpty ||
+                          int.tryParse(qty) == null ||
+                          int.parse(qty) <= 0) {
+                        hasInvalidQuantity = true;
+                        break;
+                      }
+                    }
+
+                    if (hasInvalidQuantity) {
+                      Get.snackbar(
+                        'Error',
+                        'Please enter valid qty',
+                        snackPosition: SnackPosition.BOTTOM,
+                        backgroundColor: Colors.red,
+                        colorText: Colors.white,
+                      );
+                      return;
+                    }
+
+                    // Validate rate (must not be empty or 0)
+                    bool hasInvalidRate = false;
+                    for (var product in controller.selectedProducts) {
+                      final rate =
+                          controller.rateControllers[product]?.text ?? '';
+                      if (!RegExp(r'^[1-9]\d*$').hasMatch(rate)) {
+                        hasInvalidRate = true;
+                        break;
+                      }
+                    }
+
+                    if (hasInvalidRate) {
+                      Get.snackbar(
+                        'Error',
+                        'Please enter valid rate (whole number > 0)',
+                        snackPosition: SnackPosition.BOTTOM,
+                        backgroundColor: Colors.red,
+                        colorText: Colors.white,
+                      );
+                      return;
+                    }
+
+                    ///
                     String invoiceNo = controller.invoiceNo.value;
                     String? partyName = controller.selectedPartyName.value;
                     List<Map<String, dynamic>> products =
                         controller.selectedProducts.map((product) {
                           return {
-                            'product_name':
-                                product,
+                            'product_name': product,
                             'quantity':
                                 controller.qtyControllers[product]?.text ?? '0',
                             'rate':
