@@ -190,48 +190,81 @@ class SalesEntriesController extends GetxController {
     <head>
       <title>Sales Challan</title>
       <style>
-        body {
-          font-family: Arial, sans-serif;
-          margin: 0;
-          padding: 10px;
+      @page {
+        size: 105mm 148mm;
+        margin: 0;
+      }
+        html,body {
+            font-family: "Times New Roman", Times, serif;
+            margin: 0;
+            padding: 0;
+            width: 105mm;
+            height: 148mm;
+            overflow: hidden;
         }
+        .page {
+            width: 100%;
+            height: 100%;
+            padding: 8mm;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+          }
+        .challan {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid black;
+            box-sizing: border-box;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
         .header {
-          text-align: center;
-          margin-bottom: 20px;
+            font-size: 14px;
+            line-height: 1.4;
+            font-weight: bold;
+            text-align: center;
         }
-        .title {
-          font-size: 18px;
-          font-weight: bold;
-          margin-bottom: 5px;
+
+        .row {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+            margin-bottom: 20px;
+            font-size: 12px;
         }
-        .subtitle {
-          font-size: 14px;
-        }
-        .party-info {
-          margin-bottom: 15px;
-        }
+
         table {
-          width: 100%;
-          border-collapse: collapse;
-          margin-top: 10px;
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 10px;
+            flex-grow: 1;
+            table-layout: fixed;
         }
-        th, td {
-          border: 1px solid black;
-          padding: 5px;
-          text-align: center;
+
+        th,
+        td {
+            border: 1px solid black;
+            padding: 5px;
+            text-align: center;
+            word-wrap: break-word;
         }
-        th {
-          background-color: #f2f2f2;
+
+        .total-row td {
+            font-weight: bold;
         }
-        .total {
-          font-weight: bold;
-          margin-top: 10px;
-          text-align: right;
+
+        .filler td {
+            height: 100%;
         }
-        .footer {
-          margin-top: 30px;
-          display: flex;
-          justify-content: space-between;
+
+        @media print {
+            body,
+            html {
+                height: 100%;
+            }
         }
       </style>
     </head>
@@ -240,16 +273,16 @@ class SalesEntriesController extends GetxController {
 
     // Header section
     htmlContent.writeln('''
-    <div class="header">
-      <div class="title">P/L</div>
-      <div class="subtitle">ESTIMATE</div>
-      <div class="subtitle">Transport:</div>
-    </div>
+  <div class="page">
+    <div class="challan">
+      <div class="header">           
+            ESTIMATE - SHIV<br>
+        </div>
   ''');
 
     // Party information
     htmlContent.writeln('''
-    <div class="party-info">
+    <div class="row">
       <div><strong>M/s:</strong> ${partyName ?? 'N/A'}</div>
       <div><strong>Date:</strong> ${DateFormat('dd/MM/yyyy').format(DateTime.now())}</div>
     </div>
@@ -259,11 +292,12 @@ class SalesEntriesController extends GetxController {
     htmlContent.writeln('''
     <table>
       <tr>
-        <th>No.</th>
-        <th>Brand</th>
-        <th>Location</th>
-        <th>Design No.</th>
-        <th>Qty</th>
+          <th style="width: 8%;">Sr.</th>
+          <th style="width: 22%;">Brand</th>
+          <th style="width: 18%;">Location</th>
+          <th style="width: 28%;">Design No.</th>
+          <th style="width: 10%;">Qty</th>
+          <th style="width: 14%;border: 1px solid black;"></th>
       </tr>
   ''');
     // Add products to the table
@@ -294,24 +328,53 @@ class SalesEntriesController extends GetxController {
         <td>$location</td>
         <td>$designNo</td>
         <td>$qty</td>
+        <td></td>
       </tr>
+     
     ''');
     }
 
     // Close table and add total
-    htmlContent.writeln('''
-    </table>
-    <div class="total">Total $totalQty</div>
-  ''');
+    htmlContent.writeln(''' <tr class="filler">
+                    <td>&nbsp;</td>
+                    <td>&nbsp;</td>
+                    <td>&nbsp;</td>
+                    <td>&nbsp;</td>
+                    <td>&nbsp;</td>
+                    <td>&nbsp;</td>
+        </tr>
+<tr class="total-row">
+                    <td colspan="4" style="text-align: right;font-size:12px;">Total</td>
+                    <td> $totalQty</td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td colspan="5" style="text-align: left; padding-top: 10px;">Delivery By:</td>
+                    <td></td>
+                </tr>
+          
+        </table> ''');
+    /* </table>
+    <div class="total">Total $totalQty</div>*/
 
     // Footer section
-    htmlContent.writeln('''
+    /*htmlContent.writeln('''
     <div class="footer">
       <div>Receiver's Signature</div>
       <div>Authorized Signature</div>
     </div>
-  ''');
-
+  ''');*/ /*<div style="margin-top: 20px; text-align: center;">
+    <button onclick="window.print()" style="padding: 8px 16px; margin-right: 10px;"> Print</button>
+    <button onclick="window.close()" style="padding: 8px 16px;"> Close Window</button>
+  </div>*/
+    htmlContent.writeln(('''
+ 
+  
+  <script>
+    window.onload = function() {
+      window.print();
+    }
+  </script>'''));
     // Close HTML
     htmlContent.writeln('</body></html>');
 
