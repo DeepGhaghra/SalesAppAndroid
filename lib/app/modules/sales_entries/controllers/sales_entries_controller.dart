@@ -137,8 +137,28 @@ class SalesEntriesController extends GetxController {
     }
   }
 
-  void generateInvoiceNo() {
-    invoiceNo.value = '1000${DateTime.now().millisecondsSinceEpoch % 1000}';
+  Future<void> generateInvoiceNo() async {
+    final response =
+        await Supabase.instance.client
+            .from('sales_entries')
+            .select('invoiceno')
+            .order('created_at', ascending: false)
+            .limit(1)
+            .maybeSingle();
+
+    int nextNumber = 1;
+
+    if (response != null && response['invoiceno'] != null) {
+      final lastInvoice = response['invoiceno'].toString(); // e.g. "sh-105"
+      final match = RegExp(r'SH-(\d+)').firstMatch(lastInvoice);
+
+      if (match != null) {
+        final lastNumber = int.tryParse(match.group(1) ?? '0') ?? 0;
+        nextNumber = lastNumber + 1;
+      }
+    }
+
+    invoiceNo.value = 'SH-$nextNumber';
   }
 
   void updateRate(String product) {
