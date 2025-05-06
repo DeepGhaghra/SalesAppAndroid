@@ -214,7 +214,7 @@ class SalesEntriesController extends GetxController {
         .challan {
             width: 100%;
             padding: 10px;
-            border: 2px solid black;
+            border: 1px solid black;
             box-sizing: border-box;
             height: 100vh;
             display: flex;
@@ -228,14 +228,24 @@ class SalesEntriesController extends GetxController {
             text-align: center;
         }
 
-        .row {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 20px;
-            margin-bottom: 20px;
-            font-size: 12px;
+       .party-section {
+          font-size: 12px;
+          margin-top: 10px;
+          margin-bottom: 10px;
         }
 
+        .party-name {
+          font-weight: bold;
+          word-wrap: break-word;
+          white-space: normal;
+        }
+
+        .row-between {
+          display: flex;
+          justify-content: space-between; /* Date to left, Mobile to right */
+          align-items: center;
+          margin-top: 5px;
+        }
         table {
             width: 100%;
             border-collapse: collapse;
@@ -276,16 +286,19 @@ class SalesEntriesController extends GetxController {
   <div class="page">
     <div class="challan">
       <div class="header">           
-            ESTIMATE - SHIV<br>
+            ESTIMATE - SH<br>
         </div>
   ''');
 
     // Party information
     htmlContent.writeln('''
-    <div class="row">
-      <div><strong>M/s:</strong> ${partyName ?? 'N/A'}</div>
-      <div><strong>Date:</strong> ${DateFormat('dd/MM/yyyy').format(DateTime.now())}</div>
-    </div>
+    <div class="party-section">
+      <div class="party-name"><strong>M/s:</strong> ${partyName ?? 'N/A'}</div>
+    <div class="row-between">
+            <div><strong>Mobile:</strong> 9876543210</div>
+            <div><strong>Date:</strong> ${DateFormat('dd-MM-yyyy').format(selectedDate.value)}</div>
+        </div>
+      </div>
   ''');
 
     // Products table
