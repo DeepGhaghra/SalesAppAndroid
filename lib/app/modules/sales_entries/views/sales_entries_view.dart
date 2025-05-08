@@ -8,7 +8,7 @@ import 'package:multi_select_flutter/util/multi_select_item.dart';
 import 'package:sales_app/app/modules/stock_view/model/StockList.dart';
 
 import '../../../core/common/multi_select_drop_down.dart';
-import '../../../core/common/serach_drop_down.dart';
+import '../../../core/common/search_drop_down.dart';
 import '../../../core/utils/app_colors.dart';
 import '../controllers/sales_entries_controller.dart';
 
@@ -55,8 +55,8 @@ class SalesEntriesView extends GetView<SalesEntriesController> {
 
                   onItemSelected: (Item selectedItem) {
                     controller.selectedPartyName.value = selectedItem.name;
-                    controller.selectedParty.value =
-                        controller.partyMap[selectedItem.name] ?? "";
+                    controller.selectedParty.value = selectedItem.id;
+                    print("Selected Party ID: ${selectedItem.id}");
                     print(selectedItem.name);
                   },
                 ),
@@ -67,6 +67,7 @@ class SalesEntriesView extends GetView<SalesEntriesController> {
                   items:
                       controller.designList.map((element) {
                         return MultiSelectItemModel(
+                          id: element.designId,
                           name:
                               "${element.designNo} || ${element.location ?? 'N/A'} || ${element.qtyAtLocation?.toString() ?? '0'}",
                         );
@@ -75,15 +76,29 @@ class SalesEntriesView extends GetView<SalesEntriesController> {
                     List<MultiSelectItemModel> selectedItems,
                   ) {
                     controller.onProductSelected(
-                      selectedItems.map((e) {
-                        return e.name;
-                      }).toList(),
+                      selectedItems.map((e) => e.id).toList(),
                     );
                   },
                   selectedItems:
-                      controller.selectedProducts.map((element) {
+                      controller.selectedProducts.map((designId) {
+                        final design = controller.designList.firstWhere(
+                          (d) => d.designId == designId,
+                          orElse:
+                              () => StockList(
+                                designNo: '',
+                                folderName: '',
+                                id: '0',
+                                designId: '0',
+                                location: '',
+                                qtyAtLocation: '0',
+                                locationid: '0',
+                                productId: '0',
+                                rate: 0,
+                              ),
+                        );
                         return MultiSelectItemModel(
-                          name: element,
+                          id: designId,
+                          name: "${design.designNo} (${design.location})",
                           isSelected: true,
                         );
                       }).toList(),
@@ -116,8 +131,9 @@ class SalesEntriesView extends GetView<SalesEntriesController> {
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
                   onPressed: () {
-                     // Validation checks
-                    if ((controller.selectedPartyName.value ?? '').isEmpty) {
+                    // Validation checks
+                    if ((controller.selectedPartyName.value ?? '').isEmpty ||
+                        controller.selectedParty.value!.isEmpty) {
                       Get.snackbar(
                         'Error',
                         'Please select a party',
@@ -168,7 +184,9 @@ class SalesEntriesView extends GetView<SalesEntriesController> {
                     for (var product in controller.selectedProducts) {
                       final rate =
                           controller.rateControllers[product]?.text ?? '';
-                      if (!RegExp(r'^[1-9]\d*$').hasMatch(rate)) {
+                      if (rate.isEmpty ||
+                          int.tryParse(rate) == null ||
+                          int.parse(rate) <= 0) {
                         hasInvalidRate = true;
                         break;
                       }
@@ -184,6 +202,51 @@ class SalesEntriesView extends GetView<SalesEntriesController> {
                       );
                       return;
                     }
+                    // Prepare products data
+                    List<Map<String, dynamic>> products = [];
+                    for (var designId in controller.selectedProducts) {
+                      var design = controller.designList.firstWhere(
+                        (d) => d.designId == designId,
+                        orElse:
+                            () => StockList(
+                              designNo: '',
+                              folderName: '',
+                              id: '0',
+                              designId: '0',
+                              location: '',
+                              qtyAtLocation: '0',
+                              locationid: '0',
+                              productId: '0',
+                              rate: 0,
+                            ),
+                      );
+                      var rate =
+                          int.tryParse(
+                            controller.rateControllers[designId]!.text,
+                          ) ??
+                          0;
+                      products.add({
+                        'design_id': design.designId,
+                        'product_id': design.productId,
+                        'quantity':
+                            int.tryParse(
+                              controller.qtyControllers[designId]?.text ?? '',
+                            ) ??
+                            0,
+                        'location_id': int.tryParse(design.locationid) ?? 0,
+                        'rate': rate,
+                      });
+                    }
+
+                    // Call saveSalesEntry with all required parameters
+                    controller.saveSalesEntry(
+                      invoiceNo: controller.invoiceNo.value,
+                      date: DateFormat(
+                        'yyyy-MM-dd',
+                      ).format(controller.selectedDate.value),
+                      partyId: controller.selectedParty.value,
+                      products: products,
+                    );
                   },
                   child: const Text(
                     "Save Entry",
@@ -275,15 +338,32 @@ class SalesEntriesView extends GetView<SalesEntriesController> {
                     String invoiceNo = controller.invoiceNo.value;
                     String? partyName = controller.selectedPartyName.value;
                     List<Map<String, dynamic>> products =
-                        controller.selectedProducts.map((product) {
+                        controller.selectedProducts.map((designId) {
+                          final design = controller.designList.firstWhere(
+                            (d) => d.designId == designId,
+                            orElse:
+                                () => StockList(
+                                  designNo: '',
+                                  folderName: '',
+                                  id: '0',
+                                  designId: '0',
+                                  location: '',
+                                  qtyAtLocation: '0',
+                                  locationid: '0',
+                                  productId: '0',
+                                  rate: 0,
+                                ),
+                          );
                           return {
-                            'product_name': product,
+                            'product_name':
+                                "${design.designNo} (${design.location})",
                             'quantity':
-                                controller.qtyControllers[product]?.text ?? '0',
-                            'rate':
-                                controller.rateControllers[product]?.text ??
+                                controller.qtyControllers[designId]?.text ??
                                 '0',
-                            'amount': controller.amounts[product] ?? 0,
+                            'rate':
+                                controller.rateControllers[designId]?.text ??
+                                '0',
+                            'amount': controller.amounts[designId] ?? 0,
                           };
                         }).toList();
 
@@ -453,7 +533,22 @@ class SalesEntriesView extends GetView<SalesEntriesController> {
   }
 
   // Product Card UI (for displaying product, qty, rate, and amount)
-  Widget _buildProductCard(String product) {
+  Widget _buildProductCard(String designId) {
+    final design = controller.designList.firstWhere(
+      (d) => d.designId == designId,
+      orElse:
+          () => StockList(
+            designNo: 'Unknown',
+            folderName: '',
+            id: '0',
+            designId: '0',
+            location: 'Unknown',
+            qtyAtLocation: '0',
+            locationid: '0',
+            productId: '0',
+            rate: 0,
+          ),
+    );
     return Card(
       color: AppColors.tableItem,
       margin: const EdgeInsets.symmetric(vertical: 8),
@@ -465,7 +560,7 @@ class SalesEntriesView extends GetView<SalesEntriesController> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              product,
+              "${design.designNo} (${design.location})",
               style: const TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 16,
@@ -475,11 +570,11 @@ class SalesEntriesView extends GetView<SalesEntriesController> {
             const SizedBox(height: 10),
             Row(
               children: [
-                _buildQtySelector(product),
+                _buildQtySelector(designId),
                 Spacer(),
-                _buildRateInput(product),
+                _buildRateInput(designId),
                 Spacer(),
-                _buildAmountDisplay(product),
+                _buildAmountDisplay(designId),
               ],
             ),
           ],

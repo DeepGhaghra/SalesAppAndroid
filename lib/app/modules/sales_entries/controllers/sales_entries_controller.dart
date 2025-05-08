@@ -7,9 +7,11 @@ import '../model/PartyInfo.dart';
 import '../../stock_view/model/StockList.dart';
 import '../repository/sales_entries_repository.dart';
 import 'dart:html' as html;
+import '../../../data/service/supabase_service.dart';
 
 class SalesEntriesController extends GetxController {
   final supabase = Supabase.instance.client;
+  final SupabaseService _supabaseService = SupabaseService();
 
   Rx<DateTime> selectedDate = DateTime.now().obs;
   RxString invoiceNo = ''.obs;
@@ -50,6 +52,7 @@ class SalesEntriesController extends GetxController {
     generateInvoiceNo();
     loadData();
     fetchRecentSales();
+    selectedDate.value = selectedDate.value ?? DateTime.now();
   }
 
   // Fetch parties and sort by partyName
@@ -141,24 +144,62 @@ class SalesEntriesController extends GetxController {
     invoiceNo.value = await _salesEntriesRepository.generateInvoiceNo();
   }
 
-  void updateRate(String product) {
-    String? productId = productMap[product];
-    int? partySpecificRate = priceList[selectedParty?.value]?[productId];
-    int? baseRate = productRates[product];
+  void updateRate(String designId) {
+    print("Updating rate for designNo: $designId");
 
-    if (partySpecificRate != null) {
-      rates[product] = partySpecificRate;
-      rateControllers[product]?.text = partySpecificRate.toString();
+    final partyId = selectedParty.value;
+    print("Selected Party ID: $partyId");
 
-      rateFieldColor[product] = Colors.white;
-    } else if (baseRate != null) {
-      rates[product] = baseRate;
-      rateControllers[product]?.text = baseRate.toString();
-      rateFieldColor[product] = const Color.fromARGB(255, 220, 237, 246);
+    if (partyId == null || partyId.isEmpty) return;
+
+    rateControllers[designId] ??= TextEditingController();
+
+    final stockItem = designList.firstWhereOrNull(
+      (item) => item.designId == designId,
+    );
+    print("Found stock item: $stockItem");
+
+    if (stockItem == null) return;
+
+    final productId = stockItem.productId;
+    print("Product ID: $productId");
+
+    // Try to get rate from party-specific price list
+    final partyRate = priceList[partyId]?[productId];
+    print("Party-specific rate: $partyRate");
+    // If no party-specific rate, get base rate from product_head
+    if (partyRate != null) {
+      print("Using party-specific rate.");
+      rates[designId] = partyRate;
+      rateControllers[designId]!.text = partyRate.toString();
+      rateFieldColor[designId] = Colors.white;
     } else {
-      rates[product] = 0;
+      // Get base rate using productId
+      final productName =
+          productMap.entries
+              .firstWhere(
+                (e) => e.value == productId,
+                orElse: () => MapEntry('', ''),
+              )
+              .key;
+      final baseRate = productRates[productName];
+      print("Base Rate: $baseRate");
+
+      if (baseRate != null) {
+        print("Using base rate.");
+        rates[designId] = baseRate;
+        rateControllers[designId]!.text = baseRate.toString();
+        rateFieldColor[designId] = const Color.fromARGB(255, 220, 237, 246);
+      } else {
+        print("No rate found (neither party rate nor base rate).");
+        rates[designId] = 0;
+        rateControllers[designId]!.text = '0';
+        rateFieldColor[designId] = Colors.red.shade100;
+      }
     }
-    calculateAmount(product);
+
+    calculateAmount(designId);
+    print("Rate updated successfully.");
   }
 
   void calculateAmount(String product) {
@@ -167,12 +208,12 @@ class SalesEntriesController extends GetxController {
     amounts[product] = qty * rate;
   }
 
-  void onProductSelected(List<String> designNumbers) {
-    selectedProducts.value = designNumbers;
-    for (var designNo in designNumbers) {
-      qtyControllers[designNo] ??= TextEditingController();
-      rateControllers[designNo] ??= TextEditingController();
-      updateRate(designNo);
+  void onProductSelected(List<String> designIds) {
+    selectedProducts.value = designIds;
+    for (var designId in designIds) {
+      qtyControllers[designId] ??= TextEditingController();
+      rateControllers[designId] ??= TextEditingController();
+      updateRate(designId);
     }
   }
 
@@ -432,5 +473,75 @@ class SalesEntriesController extends GetxController {
     } catch (e) {
       debugPrint('Error fetching recent sales: $e');
     }
+  }
+
+  Future<void> saveSalesEntry({
+    required String invoiceNo,
+    required String date,
+    required String? partyId,
+    required List<Map<String, dynamic>> products,
+  }) async {
+    try {
+      for (final product in products) {
+        final productId = product['product_id'];
+        final designId = product['design_id'];
+        final quantity = product['quantity'];
+        final rate = product['rate'];
+        final locationId = int.tryParse(product['location_id'].toString());
+
+        if (productId == null ||
+            designId == null ||
+            quantity == null ||
+            rate == null) {
+          throw Exception('Missing product fields: $product');
+        }
+        final amount = quantity * rate;
+        await supabase.rpc(
+          'sales_entry_and_update_stock',
+          params: {
+            '_date': date,
+            '_invoiceno': invoiceNo,
+            '_party_id': partyId,
+            '_product_id': productId,
+            '_quantity': quantity,
+            '_rate': rate,
+            '_amount': amount,
+            '_design_id': designId,
+            '_location_id': locationId,
+          },
+        );
+      }
+      resetUI();
+
+      Get.snackbar(
+        'Success',
+        'Sales entry added and stock updated',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    } catch (e) {
+      Get.snackbar(
+        'Error',
+        'Failed to add sales entry: $e',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+      rethrow;
+    }
+  }
+
+  void resetUI() {
+    selectedProducts.clear();selectedProducts.refresh();
+    qtyControllers.clear();
+    rateControllers.clear();
+    amounts.clear();
+    selectedParty.value = null;
+    selectedPartyName.value = null;
+    rateFieldColor.clear();
+    
+    // Generate new invoice number without resetting date
+    generateInvoiceNo();
+
+    update();
   }
 }

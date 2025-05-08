@@ -7,9 +7,14 @@ import '../utils/app_colors.dart';
 // Define your custom color pool here
 class MultiSelectItemModel {
   final String name;
+  final String id;
   bool isSelected;
 
-  MultiSelectItemModel({required this.name, this.isSelected = false});
+  MultiSelectItemModel({
+    required this.id,
+    required this.name,
+    this.isSelected = false,
+  });
 }
 
 class MultiSelectSearchDropdown extends StatefulWidget {

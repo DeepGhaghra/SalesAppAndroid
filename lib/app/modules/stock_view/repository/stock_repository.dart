@@ -12,7 +12,7 @@ class StockRepository {
       .select('''
           *, products_design!inner(*,
             product_head:product_head_id(*,
-            folder:folder_id(folder_name            ))
+            folder:folder_id(folder_name))
           ),
           locations!inner(*)
         ''');
