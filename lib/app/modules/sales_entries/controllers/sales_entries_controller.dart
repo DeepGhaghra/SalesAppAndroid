@@ -6,8 +6,14 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../model/PartyInfo.dart';
 import '../../stock_view/model/StockList.dart';
 import '../repository/sales_entries_repository.dart';
-import 'dart:html' as html;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import '../../../data/service/supabase_service.dart';
+import 'package:pdf/pdf.dart';
+import 'package:printing/printing.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:universal_html/html.dart'
+    if (dart.library.html) 'dart:html'
+    as html;
 
 class SalesEntriesController extends GetxController {
   final supabase = Supabase.instance.client;
@@ -145,10 +151,7 @@ class SalesEntriesController extends GetxController {
   }
 
   void updateRate(String designId) {
-    print("Updating rate for designNo: $designId");
-
     final partyId = selectedParty.value;
-    print("Selected Party ID: $partyId");
 
     if (partyId == null || partyId.isEmpty) return;
 
@@ -157,19 +160,14 @@ class SalesEntriesController extends GetxController {
     final stockItem = designList.firstWhereOrNull(
       (item) => item.designId == designId,
     );
-    print("Found stock item: $stockItem");
-
     if (stockItem == null) return;
 
     final productId = stockItem.productId;
-    print("Product ID: $productId");
 
     // Try to get rate from party-specific price list
     final partyRate = priceList[partyId]?[productId];
-    print("Party-specific rate: $partyRate");
     // If no party-specific rate, get base rate from product_head
     if (partyRate != null) {
-      print("Using party-specific rate.");
       rates[designId] = partyRate;
       rateControllers[designId]!.text = partyRate.toString();
       rateFieldColor[designId] = Colors.white;
@@ -183,23 +181,18 @@ class SalesEntriesController extends GetxController {
               )
               .key;
       final baseRate = productRates[productName];
-      print("Base Rate: $baseRate");
 
       if (baseRate != null) {
-        print("Using base rate.");
         rates[designId] = baseRate;
         rateControllers[designId]!.text = baseRate.toString();
         rateFieldColor[designId] = const Color.fromARGB(255, 220, 237, 246);
       } else {
-        print("No rate found (neither party rate nor base rate).");
         rates[designId] = 0;
         rateControllers[designId]!.text = '0';
         rateFieldColor[designId] = Colors.red.shade100;
       }
     }
-
     calculateAmount(designId);
-    print("Rate updated successfully.");
   }
 
   void calculateAmount(String product) {
@@ -359,19 +352,14 @@ class SalesEntriesController extends GetxController {
     for (int i = 0; i < products.length; i++) {
       var product = products[i];
 
-      // Parse the product name to extract components (assuming format from your MultiSelectSearchDropdown)
-      String productName = product['product_name'];
-      List<String> parts = productName.split(' || ');
-      String designNo = parts.isNotEmpty ? parts[0] : productName;
-      String location = parts.length > 1 ? parts[1] : 'N/A';
-      String brand = 'N/A';
-      for (var design in designList) {
-        if (design.designNo == designNo) {
-          brand = design.folderName;
-          break;
-        }
-      }
+      String designId = product['design_id']?.toString() ?? '';
 
+      // Find the design with proper null checks
+      var design = designList.firstWhereOrNull((d) => d.designId == designId);
+
+      String brand = product['brand'] ?? 'N/A';
+      String location = product['location'] ?? 'N/A';
+      String designNo = product['designNo'] ?? 'N/A';
       int qty = int.tryParse(product['quantity'] ?? '0') ?? 0;
       totalQty += qty;
 
@@ -421,9 +409,7 @@ class SalesEntriesController extends GetxController {
     <button onclick="window.print()" style="padding: 8px 16px; margin-right: 10px;"> Print</button>
     <button onclick="window.close()" style="padding: 8px 16px;"> Close Window</button>
   </div>*/
-    htmlContent.writeln(('''
- 
-  
+    htmlContent.writeln((''' 
   <script>
     window.onload = function() {
       window.print();
@@ -431,15 +417,66 @@ class SalesEntriesController extends GetxController {
   </script>'''));
     // Close HTML
     htmlContent.writeln('</body></html>');
-
-    // Create a Blob and trigger the print dialog
+    if (kIsWeb) {
+      //web printing by window
+      importhtmlexecute(() {
+        final blob = html.Blob([htmlContent.toString()], 'text/html');
+        final url = html.Url.createObjectUrlFromBlob(blob);
+        final anchor =
+            html.AnchorElement(href: url)
+              ..target = 'print_window'
+              ..click();
+        html.Url.revokeObjectUrl(url);
+      });
+    } else {
+      importPrintExecute(() async {
+        final pdf = pw.Document();
+        pdf.addPage(
+          pw.Page(
+            build:
+                (pw.Context context) => pw.Center(
+                  child: pw.Text('Printing not yet implemented in PDF'),
+                ),
+          ),
+        );
+        await Printing.layoutPdf(
+          onLayout: (PdfPageFormat format) async => pdf.save(),
+        );
+      });
+    }
+    /*// Create a Blob and trigger the print dialog
     final blob = html.Blob([htmlContent.toString()], 'text/html');
     final url = html.Url.createObjectUrlFromBlob(blob);
     final anchor =
         html.AnchorElement(href: url)
           ..setAttribute('target', '_blank')
           ..click();
-    html.Url.revokeObjectUrl(url);
+    html.Url.revokeObjectUrl(url);*/
+  }
+
+  void importhtmlexecute(Function fn) {
+    if (!kIsWeb) return;
+    // Dynamic import since direct import causes crash on mobile
+    Future.microtask(() {
+      try {
+        fn();
+      } catch (e) {
+        debugPrint("Web printing error: $e");
+      }
+    });
+  }
+
+  void importPrintExecute(Function fn) {
+    // Only execute on mobile
+    if (kIsWeb) return;
+    // You must add printing/pdf package
+    Future.microtask(() {
+      try {
+        fn();
+      } catch (e) {
+        debugPrint("Mobile printing error: $e");
+      }
+    });
   }
 
   Future<void> fetchRecentSales() async {
@@ -531,14 +568,15 @@ class SalesEntriesController extends GetxController {
   }
 
   void resetUI() {
-    selectedProducts.clear();selectedProducts.refresh();
+    selectedProducts.clear();
+    selectedProducts.refresh();
     qtyControllers.clear();
     rateControllers.clear();
     amounts.clear();
     selectedParty.value = null;
     selectedPartyName.value = null;
     rateFieldColor.clear();
-    
+
     // Generate new invoice number without resetting date
     generateInvoiceNo();
 

@@ -178,7 +178,48 @@ class SalesEntriesView extends GetView<SalesEntriesController> {
                       );
                       return;
                     }
+                    // Check if entered qty > available stock
+                    bool exceedsStock = false;
+                    for (var designId in controller.selectedProducts) {
+                      final design = controller.designList.firstWhere(
+                        (d) => d.designId == designId,
+                        orElse:
+                            () => StockList(
+                              designNo: '',
+                              id: '0',
+                              designId: '0',
+                              locationid: '0',
+                              location: '',
+                              qtyAtLocation: '0',
+                              folderName: '',
+                              productId: '0',
+                              rate: 0,
+                            ),
+                      );
+                      final enteredQty =
+                          int.tryParse(
+                            controller.qtyControllers[designId]?.text ?? '0',
+                          ) ??
+                          0;
+                      final availableQty =
+                          int.tryParse(design.qtyAtLocation ?? '0') ?? 0;
 
+                      if (enteredQty > availableQty) {
+                        exceedsStock = true;
+                        break;
+                      }
+                    }
+
+                    if (exceedsStock) {
+                      Get.snackbar(
+                        'Warning',
+                        'Stock Not availble,please recheck all designs',
+                        snackPosition: SnackPosition.BOTTOM,
+                        backgroundColor: Colors.orange,
+                        colorText: Colors.black,
+                      );
+                      return;
+                    }
                     // Validate rate (must not be empty or 0)
                     bool hasInvalidRate = false;
                     for (var product in controller.selectedProducts) {
@@ -288,50 +329,74 @@ class SalesEntriesView extends GetView<SalesEntriesController> {
                       return;
                     }
 
-                    // Check all selected products have quantity > 0
-                    bool hasInvalidQuantity = false;
+                    // Validate quantities
                     for (var product in controller.selectedProducts) {
                       final qty =
                           controller.qtyControllers[product]?.text ?? '';
                       if (qty.isEmpty ||
                           int.tryParse(qty) == null ||
                           int.parse(qty) <= 0) {
-                        hasInvalidQuantity = true;
-                        break;
+                        Get.snackbar(
+                          'Error',
+                          'Please enter valid quantity for all designs',
+                          snackPosition: SnackPosition.BOTTOM,
+                          backgroundColor: Colors.red,
+                          colorText: Colors.white,
+                        );
+                        return;
                       }
                     }
 
-                    if (hasInvalidQuantity) {
-                      Get.snackbar(
-                        'Error',
-                        'Please enter valid qty',
-                        snackPosition: SnackPosition.BOTTOM,
-                        backgroundColor: Colors.red,
-                        colorText: Colors.white,
-                      );
-                      return;
-                    }
-
-                    // Validate rate (must not be empty or 0)
-                    bool hasInvalidRate = false;
+                    // Validate rates
                     for (var product in controller.selectedProducts) {
                       final rate =
                           controller.rateControllers[product]?.text ?? '';
                       if (!RegExp(r'^[1-9]\d*$').hasMatch(rate)) {
-                        hasInvalidRate = true;
-                        break;
+                        Get.snackbar(
+                          'Error',
+                          'Please enter valid rate (whole number > 0)',
+                          snackPosition: SnackPosition.BOTTOM,
+                          backgroundColor: Colors.red,
+                          colorText: Colors.white,
+                        );
+                        return;
                       }
                     }
-
-                    if (hasInvalidRate) {
-                      Get.snackbar(
-                        'Error',
-                        'Please enter valid rate (whole number > 0)',
-                        snackPosition: SnackPosition.BOTTOM,
-                        backgroundColor: Colors.red,
-                        colorText: Colors.white,
+                    // Check stock vs entered qty
+                    for (var designId in controller.selectedProducts) {
+                      final design = controller.designList.firstWhere(
+                        (d) => d.designId == designId,
+                        orElse:
+                            () => StockList(
+                              designNo: '',
+                              id: '0',
+                              designId: '0',
+                              locationid: '0',
+                              location: '',
+                              qtyAtLocation: '0',
+                              folderName: '',
+                              productId: '0',
+                              rate: 0,
+                            ),
                       );
-                      return;
+                      final enteredQty =
+                          int.tryParse(
+                            controller.qtyControllers[designId]?.text ?? '0',
+                          ) ??
+                          0;
+                      final availableQty =
+                          int.tryParse(design.qtyAtLocation ?? '0') ?? 0;
+
+                      if (enteredQty > availableQty) {
+                        Get.snackbar(
+                          'Warning',
+                          'Entered quantity for ${design.designNo} (${design.location}) exceeds available stock ($availableQty)',
+                          snackPosition: SnackPosition.BOTTOM,
+                          backgroundColor: Colors.orange,
+                          colorText: Colors.black,
+                        );
+                        return;
+                      }
                     }
 
                     ///
@@ -355,6 +420,10 @@ class SalesEntriesView extends GetView<SalesEntriesController> {
                                 ),
                           );
                           return {
+                            'design_id': designId,
+                            'designNo': design.designNo ?? 'N/A',
+                            'brand': design.folderName ?? 'N/A',
+                            'location': design.location ?? 'N/A',
                             'product_name':
                                 "${design.designNo} (${design.location})",
                             'quantity':
