@@ -56,8 +56,6 @@ class SalesEntriesView extends GetView<SalesEntriesController> {
                   onItemSelected: (Item selectedItem) {
                     controller.selectedPartyName.value = selectedItem.name;
                     controller.selectedParty.value = selectedItem.id;
-                    print("Selected Party ID: ${selectedItem.id}");
-                    print(selectedItem.name);
                   },
                 ),
 
@@ -67,20 +65,18 @@ class SalesEntriesView extends GetView<SalesEntriesController> {
                   items:
                       controller.designList.map((element) {
                         return MultiSelectItemModel(
-                          id: element.designId,
+                          id: "${element.designId}_${element.locationid}",
                           name:
-                              "${element.designNo} || ${element.location ?? 'N/A'} || ${element.qtyAtLocation?.toString() ?? '0'}",
+                              "${element.designNo} (${element.location}) [${element.qtyAtLocation}]",
                         );
                       }).toList(),
-                  onSelectionChanged: (
-                    List<MultiSelectItemModel> selectedItems,
-                  ) {
-                    controller.onProductSelected(
-                      selectedItems.map((e) => e.id).toList(),
-                    );
-                  },
+
                   selectedItems:
-                      controller.selectedProducts.map((designId) {
+                      controller.selectedProducts.map((id) {
+                        final parts = id.split('_');
+                        final designId = parts[0];
+                        final locationId = parts.length > 1 ? parts[1] : '0';
+
                         final design = controller.designList.firstWhere(
                           (d) => d.designId == designId,
                           orElse:
@@ -97,11 +93,16 @@ class SalesEntriesView extends GetView<SalesEntriesController> {
                               ),
                         );
                         return MultiSelectItemModel(
-                          id: designId,
-                          name: "${design.designNo} (${design.location})",
+                          id: id,
+                          name:
+                              "${design.designNo} (${design.location}) [${design.qtyAtLocation}]",
                           isSelected: true,
                         );
                       }).toList(),
+                  onSelectionChanged: (selectedItems) {
+                    final ids = selectedItems.map((e) => e.id).toList();
+                    controller.onProductSelected(ids);
+                  },
                 ),
                 // _buildPartySelector(context),
                 const SizedBox(height: 20),
@@ -433,9 +434,30 @@ class SalesEntriesView extends GetView<SalesEntriesController> {
                                 controller.rateControllers[designId]?.text ??
                                 '0',
                             'amount': controller.amounts[designId] ?? 0,
+                            'product_id': design.productId,
+                            'location_id': int.tryParse(design.locationid) ?? 0,
                           };
                         }).toList();
-
+                    // Save sales entry first
+                    controller.saveSalesEntry(
+                      invoiceNo: invoiceNo,
+                      date: DateFormat(
+                        'yyyy-MM-dd',
+                      ).format(controller.selectedDate.value),
+                      partyId: controller.selectedParty.value,
+                      products:
+                          products
+                              .map(
+                                (p) => {
+                                  'design_id': p['design_id'],
+                                  'product_id': p['product_id'],
+                                  'quantity': int.tryParse(p['quantity']) ?? 0,
+                                  'rate': int.tryParse(p['rate']) ?? 0,
+                                  'location_id': p['location_id'],
+                                },
+                              )
+                              .toList(),
+                    );
                     // Call the print function
                     controller.printSalesEntry(invoiceNo, partyName, products);
                   },
@@ -602,9 +624,13 @@ class SalesEntriesView extends GetView<SalesEntriesController> {
   }
 
   // Product Card UI (for displaying product, qty, rate, and amount)
-  Widget _buildProductCard(String designId) {
+  Widget _buildProductCard(String uniqueId) {
+    final parts = uniqueId.split('_');
+    final designId = parts[0];
+    final locationId = parts.length > 1 ? parts[1] : '0';
+
     final design = controller.designList.firstWhere(
-      (d) => d.designId == designId,
+      (d) => d.designId == designId && d.locationid == locationId,
       orElse:
           () => StockList(
             designNo: 'Unknown',
@@ -639,11 +665,11 @@ class SalesEntriesView extends GetView<SalesEntriesController> {
             const SizedBox(height: 10),
             Row(
               children: [
-                _buildQtySelector(designId),
+                _buildQtySelector(uniqueId),
                 Spacer(),
-                _buildRateInput(designId),
+                _buildRateInput(uniqueId),
                 Spacer(),
-                _buildAmountDisplay(designId),
+                _buildAmountDisplay(uniqueId),
               ],
             ),
           ],
@@ -653,11 +679,11 @@ class SalesEntriesView extends GetView<SalesEntriesController> {
   }
 
   // Quantity Selector with + / - buttons
-  Widget _buildQtySelector(String product) {
+  Widget _buildQtySelector(String uniqueId) {
     return SizedBox(
       width: Get.width * 0.25,
       child: TextFormField(
-        controller: controller.qtyControllers[product],
+        controller: controller.qtyControllers[uniqueId],
         textAlign: TextAlign.center,
         decoration: const InputDecoration(
           contentPadding: EdgeInsets.zero,
@@ -665,29 +691,29 @@ class SalesEntriesView extends GetView<SalesEntriesController> {
           border: InputBorder.none,
         ),
         keyboardType: TextInputType.number,
-        onChanged: (_) => controller.calculateAmount(product),
+        onChanged: (_) => controller.calculateAmount(uniqueId),
       ),
     );
   }
 
   // Rate Input Field for each product
-  Widget _buildRateInput(String product) {
+  Widget _buildRateInput(String uniqueId) {
     return SizedBox(
       width: Get.width * 0.25,
       child: TextFormField(
-        controller: controller.rateControllers[product],
+        controller: controller.rateControllers[uniqueId],
         decoration: const InputDecoration(
           labelText: "Rate",
           border: InputBorder.none,
         ),
         keyboardType: TextInputType.number,
-        onChanged: (_) => controller.calculateAmount(product),
+        onChanged: (_) => controller.calculateAmount(uniqueId),
       ),
     );
   }
 
   // Displaying Amount for each product
-  Widget _buildAmountDisplay(String product) {
+  Widget _buildAmountDisplay(String uniqueId) {
     return SizedBox(
       width: Get.width * 0.25,
       child: Column(
@@ -698,7 +724,7 @@ class SalesEntriesView extends GetView<SalesEntriesController> {
             style: TextStyle(fontSize: 12, color: AppColors.textGrey),
           ),
           Text(
-            "₹ ${controller.amounts[product] ?? 0}",
+            "₹ ${controller.amounts[uniqueId] ?? 0}",
             style: const TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 16,
