@@ -245,7 +245,7 @@ class SalesEntriesView extends GetView<SalesEntriesController> {
                     List<Map<String, dynamic>> products = [];
                     for (var designId in controller.selectedProducts) {
                       var design = controller.designList.firstWhere(
-                        (d) => d.designId == designId,
+                        (d) => d.id == designId,
                         orElse:
                             () => StockList(
                               designNo: '',
@@ -363,7 +363,7 @@ class SalesEntriesView extends GetView<SalesEntriesController> {
                     // Check stock vs entered qty
                     for (var designId in controller.selectedProducts) {
                       final design = controller.designList.firstWhere(
-                        (d) => d.designId == designId,
+                        (d) => d.id == designId,
                         orElse:
                             () => StockList(
                               designNo: '',
