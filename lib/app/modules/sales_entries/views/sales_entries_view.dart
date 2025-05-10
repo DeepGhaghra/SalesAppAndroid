@@ -65,7 +65,7 @@ class SalesEntriesView extends GetView<SalesEntriesController> {
                   items:
                       controller.designList.map((element) {
                         return MultiSelectItemModel(
-                          id: "${element.designId}_${element.locationid}",
+                          id: element.id,
                           name:
                               "${element.designNo} (${element.location}) [${element.qtyAtLocation}]",
                         );
@@ -73,12 +73,9 @@ class SalesEntriesView extends GetView<SalesEntriesController> {
 
                   selectedItems:
                       controller.selectedProducts.map((id) {
-                        final parts = id.split('_');
-                        final designId = parts[0];
-                        final locationId = parts.length > 1 ? parts[1] : '0';
-
+                       
                         final design = controller.designList.firstWhere(
-                          (d) => d.designId == designId,
+                          (d) => d.id == id,
                           orElse:
                               () => StockList(
                                 designNo: '',
@@ -183,7 +180,7 @@ class SalesEntriesView extends GetView<SalesEntriesController> {
                     bool exceedsStock = false;
                     for (var designId in controller.selectedProducts) {
                       final design = controller.designList.firstWhere(
-                        (d) => d.designId == designId,
+                        (d) => d.id == designId,
                         orElse:
                             () => StockList(
                               designNo: '',
@@ -406,7 +403,7 @@ class SalesEntriesView extends GetView<SalesEntriesController> {
                     List<Map<String, dynamic>> products =
                         controller.selectedProducts.map((designId) {
                           final design = controller.designList.firstWhere(
-                            (d) => d.designId == designId,
+                            (d) => d.id == designId,
                             orElse:
                                 () => StockList(
                                   designNo: '',
@@ -625,12 +622,9 @@ class SalesEntriesView extends GetView<SalesEntriesController> {
 
   // Product Card UI (for displaying product, qty, rate, and amount)
   Widget _buildProductCard(String uniqueId) {
-    final parts = uniqueId.split('_');
-    final designId = parts[0];
-    final locationId = parts.length > 1 ? parts[1] : '0';
-
+    
     final design = controller.designList.firstWhere(
-      (d) => d.designId == designId && d.locationid == locationId,
+      (d) => d.id == uniqueId,
       orElse:
           () => StockList(
             designNo: 'Unknown',

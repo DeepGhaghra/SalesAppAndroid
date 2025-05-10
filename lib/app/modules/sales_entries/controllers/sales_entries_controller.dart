@@ -150,32 +150,27 @@ class SalesEntriesController extends GetxController {
     invoiceNo.value = await _salesEntriesRepository.generateInvoiceNo();
   }
 
-  void updateRate(String uniqueId) {
-    final parts = uniqueId.split('_');
-    final designId = parts[0];
-    final locationId = parts.length > 1 ? parts[1] : '0';
+  void updateRate(String stockId) {
     final partyId = selectedParty.value;
-
     if (partyId == null || partyId.isEmpty) return;
 
-    rateControllers[uniqueId] ??= TextEditingController();
-
-    final stockItem = designList.firstWhereOrNull(
-      (item) => item.designId == designId && item.locationid == locationId,
-    );
+    // Use actual stock ID to find the item
+    final stockItem = designList.firstWhereOrNull((item) => item.id == stockId);
     if (stockItem == null) return;
+
+    rateControllers[stockId] ??= TextEditingController();
 
     final productId = stockItem.productId;
 
     // Try to get rate from party-specific price list
     final partyRate = priceList[partyId]?[productId];
-    // If no party-specific rate, get base rate from product_head
+
     if (partyRate != null) {
-      rates[uniqueId] = partyRate;
-      rateControllers[uniqueId]!.text = partyRate.toString();
-      rateFieldColor[uniqueId] = Colors.white;
+      rates[stockId] = partyRate;
+      rateControllers[stockId]!.text = partyRate.toString();
+      rateFieldColor[stockId] = Colors.white;
     } else {
-      // Get base rate using productId
+      // Get base rate using product name
       final productName =
           productMap.entries
               .firstWhere(
@@ -186,16 +181,17 @@ class SalesEntriesController extends GetxController {
       final baseRate = productRates[productName];
 
       if (baseRate != null) {
-        rates[uniqueId] = baseRate;
-        rateControllers[uniqueId]!.text = baseRate.toString();
-        rateFieldColor[uniqueId] = const Color.fromARGB(255, 220, 237, 246);
+        rates[stockId] = baseRate;
+        rateControllers[stockId]!.text = baseRate.toString();
+        rateFieldColor[stockId] = const Color.fromARGB(255, 220, 237, 246);
       } else {
-        rates[uniqueId] = 0;
-        rateControllers[uniqueId]!.text = '0';
-        rateFieldColor[uniqueId] = Colors.red.shade100;
+        rates[stockId] = 0;
+        rateControllers[stockId]!.text = '0';
+        rateFieldColor[stockId] = Colors.red.shade100;
       }
     }
-    calculateAmount(uniqueId);
+
+    calculateAmount(stockId);
   }
 
   void calculateAmount(String product) {
@@ -204,14 +200,12 @@ class SalesEntriesController extends GetxController {
     amounts[product] = qty * rate;
   }
 
-  void onProductSelected(List<String> uniqueIds) {
-    selectedProducts.value = uniqueIds;
-    for (var uniqueId in uniqueIds) {
-      final parts = uniqueId.split('_');
-      final designId = parts[0];
-      qtyControllers[uniqueId] ??= TextEditingController();
-      rateControllers[uniqueId] ??= TextEditingController();
-      updateRate(uniqueId);
+  void onProductSelected(List<String> designIds) {
+    selectedProducts.value = designIds;
+    for (var designId in designIds) {
+      qtyControllers[designId] ??= TextEditingController();
+      rateControllers[designId] ??= TextEditingController();
+      updateRate(designId);
     }
   }
 
