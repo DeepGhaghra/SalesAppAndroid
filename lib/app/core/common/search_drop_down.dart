@@ -4,19 +4,24 @@ import 'package:flutter/material.dart';
 class Item {
   final String id;
   final String name;
+  bool isSelected;
 
-  Item({required this.id, required this.name});
+
+  Item({required this.id, required this.name  , this.isSelected = false });
 }
 
 class SearchableDropdown extends StatefulWidget {
   final List<Item> items;
+Item? selectedItem;
+
   final void Function(Item selectedItem) onItemSelected;
   final String hintText;
   final String labelText; // <-- new label
 
-  const SearchableDropdown({
+ SearchableDropdown({
     Key? key,
     required this.items,
+    this.selectedItem ,
     required this.onItemSelected,
     this.hintText = "Please select an option",
     this.labelText = "Please select an option", // default label
@@ -30,6 +35,15 @@ class _SearchableDropdownState extends State<SearchableDropdown> {
   Item? selectedItem;
   final LayerLink _layerLink = LayerLink();
   OverlayEntry? _overlayEntry;
+
+  @override
+  void initState() {
+    // TODO: implement initState
+
+    super.initState();
+    selectedItem = widget.selectedItem;
+
+  }
 
   void _toggleDropdown() {
     if (_overlayEntry == null) {

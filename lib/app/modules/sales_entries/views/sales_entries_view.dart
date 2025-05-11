@@ -5,8 +5,10 @@ import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:multi_select_flutter/dialog/multi_select_dialog_field.dart';
 import 'package:multi_select_flutter/util/multi_select_item.dart';
+import 'package:sales_app/app/core/common/base_screen.dart';
 import 'package:sales_app/app/modules/stock_view/model/StockList.dart';
 
+import '../../../core/common/app_drawer.dart';
 import '../../../core/common/multi_select_drop_down.dart';
 import '../../../core/common/search_drop_down.dart';
 import '../../../core/utils/app_colors.dart';
@@ -17,17 +19,8 @@ class SalesEntriesView extends GetView<SalesEntriesController> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.screenBackGround,
-      appBar: AppBar(
-        title: const Text(
-          'Sales Entry',
-          style: TextStyle(color: AppColors.textBlackDark),
-        ),
-        backgroundColor: AppColors.screenBackGround,
-        elevation: 0,
-        centerTitle: true,
-      ),
+    return BaseScreen(
+   nameOfScreen: "Sales Entry",
       body: Obx(() {
         if (controller.isLoading.value) {
           return const Center(child: CircularProgressIndicator());
@@ -45,17 +38,23 @@ class SalesEntriesView extends GetView<SalesEntriesController> {
                 const SizedBox(height: 10),
 
                 SearchableDropdown(
+                  key: UniqueKey(),
                   labelText: "Select Party",
                   hintText: "Select Party",
+                  selectedItem: controller.selectedPartyItem,
 
                   items:
                       controller.partyList.map((element) {
-                        return Item(id: element.id, name: element.partyName);
+                        return Item(id: element.id, name: element.partyName  , isSelected: element.isSelected);
                       }).toList(),
 
                   onItemSelected: (Item selectedItem) {
+
                     controller.selectedPartyName.value = selectedItem.name;
                     controller.selectedParty.value = selectedItem.id;
+                    controller.selectedPartyItem = selectedItem;
+
+
                   },
                 ),
 
@@ -303,7 +302,11 @@ class SalesEntriesView extends GetView<SalesEntriesController> {
                     ),
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
-                  onPressed: () {
+                  onPressed: () async {
+
+
+
+
                     // Validation checks
                     if ((controller.selectedPartyName.value ?? '').isEmpty) {
                       Get.snackbar(
@@ -436,7 +439,10 @@ class SalesEntriesView extends GetView<SalesEntriesController> {
                           };
                         }).toList();
                     // Save sales entry first
-                    controller.saveSalesEntry(
+                controller.saveSalesEntry(
+                     onSuccess: () {
+                       controller.printSalesEntry(invoiceNo, partyName, products);
+                     },
                       invoiceNo: invoiceNo,
                       date: DateFormat(
                         'yyyy-MM-dd',
@@ -455,8 +461,8 @@ class SalesEntriesView extends GetView<SalesEntriesController> {
                               )
                               .toList(),
                     );
-                    // Call the print function
-                    controller.printSalesEntry(invoiceNo, partyName, products);
+
+
                   },
                   child: const Text(
                     "Print Challan",
@@ -467,7 +473,7 @@ class SalesEntriesView extends GetView<SalesEntriesController> {
             ),
           ),
         );
-      }),
+      }), globalKey: GlobalKey(),
     );
   }
 

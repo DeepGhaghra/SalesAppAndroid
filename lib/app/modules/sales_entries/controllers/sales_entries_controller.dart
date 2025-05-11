@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:sales_app/app/modules/stock_view/repository/stock_repository.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../core/common/search_drop_down.dart';
 import '../model/PartyInfo.dart';
 import '../../stock_view/model/StockList.dart';
 import '../repository/sales_entries_repository.dart';
@@ -23,6 +24,9 @@ class SalesEntriesController extends GetxController {
   RxString invoiceNo = ''.obs;
   RxnString selectedParty = RxnString();
   RxnString selectedPartyName = RxnString();
+
+  Item? selectedPartyItem;
+
   RxList<String> selectedProducts = <String>[].obs;
 
   final formKey = GlobalKey<FormState>();
@@ -512,6 +516,8 @@ class SalesEntriesController extends GetxController {
   }
 
   Future<void> saveSalesEntry({
+
+    VoidCallback? onSuccess,
     required String invoiceNo,
     required String date,
     required String? partyId,
@@ -554,7 +560,14 @@ class SalesEntriesController extends GetxController {
         'Sales entry added and stock updated',
         snackPosition: SnackPosition.BOTTOM,
       );
-    } catch (e) {
+
+      Future.delayed(const Duration(seconds: 3), () {
+        onSuccess?.call();
+      });
+
+
+
+  } catch (e) {
       Get.snackbar(
         'Error',
         'Failed to add sales entry: $e',
@@ -566,19 +579,29 @@ class SalesEntriesController extends GetxController {
     }
   }
 
+
   void resetUI() {
     selectedProducts.clear();
-    selectedProducts.refresh();
+
     qtyControllers.clear();
     rateControllers.clear();
     amounts.clear();
     selectedParty.value = null;
     selectedPartyName.value = null;
     rateFieldColor.clear();
+    selectedProducts.refresh();
+    selectedParty.refresh();
+selectedPartyItem = null;
+
+    selectedPartyName.refresh();
+
+
+
+
 
     // Generate new invoice number without resetting date
     generateInvoiceNo();
 
-    update();
+
   }
 }

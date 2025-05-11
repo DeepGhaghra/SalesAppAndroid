@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get/get_core/src/get_main.dart';
 import 'package:get/get_state_manager/src/simple/get_view.dart';
+import 'package:sales_app/app/core/common/base_screen.dart';
 
+import '../../../core/common/app_bar.dart';
+import '../../../core/common/app_drawer.dart';
 import '../../../routes/app_pages.dart';
 
 import '../controllers/dashboard_controller.dart';
@@ -14,99 +17,12 @@ class DashboardView extends GetView<DashboardController> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      resizeToAvoidBottomInset: false,
-      appBar: AppBar(title: const Text('Sales Entry')),
-      drawer: Drawer(
-        child: ListView(
-          padding: EdgeInsets.zero,
-          children: [
-            DrawerHeader(
-              decoration: const BoxDecoration(color: Colors.blue),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: const [
-                  Text(
-                    'Menu',
-                    style: TextStyle(color: Colors.white, fontSize: 28),
-                  ),
-                ],
-              ),
-            ),
-            _drawerItem(
-              context,
-              Icons.receipt,
-              "Sales Entry",
-                Routes.SALESENTRIES
-              // const SalesEntryScreen(),
-            ),
-            _drawerItem(
-              context,
-              Icons.group,
-              "Party List",
-                Routes.PARTYLIST
-              // const PartyListScreen(isOnline: true),
-            ),
-            _drawerItem(
-              context,
-              Icons.shopping_cart,
-              "Product List",
-           Routes.PRODUCTLIST
-              // const ProductListScreen(isOnline: true),
-            ),
-            _drawerItem(
-              context,
-              Icons.price_check,
-              "Price List",
-              Routes.PRICELIST
-              // const PriceListScreen(),
-            ),
-            _drawerItem(
-              context,
-              Icons.upload_file,
-              "Export Data",
-
-              Routes.EXPORTDATA
-            ),
-            _drawerItem(
-              context,
-              Icons.folder,
-              "Manage Party Folders",
-             Routes.PARTYFOLDER
-            ),
-            _drawerItem(
-              context,
-              Icons.inventory_2,
-              "Manage Stock",
-                Routes.STOCKVIEW
-            ),
-          ],
-        ),
-      ),
-      body: _homeMenu(context),
-    );
+    return BaseScreen(body:  _homeMenu(context), globalKey:GlobalKey()  ,nameOfScreen: "DashBoard",);
 
   }
 }
 
-Widget _drawerItem(
-    BuildContext context,
-    IconData icon,
-    String title,
-    String routeName
-    ) {
-  return ListTile(
-    leading: Icon(icon),
-    title: Text(title),
-    onTap: () {
-     Get.back();
 
-Get.toNamed(routeName);
-
-    },
-  );
-}
 
 Widget _homeMenu(BuildContext context) {
   return GridView.count(
