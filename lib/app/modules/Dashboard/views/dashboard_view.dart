@@ -13,94 +13,104 @@ import '../controllers/dashboard_controller.dart';
 class DashboardView extends GetView<DashboardController> {
   const DashboardView({super.key});
 
-
-
   @override
   Widget build(BuildContext context) {
-    return BaseScreen(body:  _homeMenu(context), globalKey:GlobalKey()  ,nameOfScreen: "DashBoard",);
-
+    return BaseScreen(
+      body: _homeMenu(context),
+      globalKey: GlobalKey(),
+      nameOfScreen: "Dashboard",
+    );
   }
 }
 
-
-
 Widget _homeMenu(BuildContext context) {
+  // Get screen width
+  double screenWidth = MediaQuery.of(context).size.width;
+
+  // Automatically adjust crossAxisCount based on screen width
+  int crossAxisCount =
+      screenWidth > 600 ? 5 : 3; // For tablets or larger screens, use 4 columns
+
   return GridView.count(
-    crossAxisCount: 3,
+    crossAxisCount: crossAxisCount,
     padding: const EdgeInsets.all(16),
     children: [
       _menuTile(
         context,
         "Daily Sales Entry",
         Icons.receipt,
-          Routes.SALESENTRIES
+        Routes.SALESENTRIES,
         // const SalesEntryScreen(),
       ),
       _menuTile(
         context,
         "Manage Parties",
         Icons.group,
-          Routes.PARTYLIST
+        Routes.PARTYLIST,
         // const PartyListScreen(isOnline: true),
       ),
       _menuTile(
         context,
         "Product Heads",
         Icons.shopping_cart,
-          Routes.PRODUCTLIST
+        Routes.PRODUCTLIST,
         // const ProductListScreen(isOnline: true),
       ),
       _menuTile(
         context,
         "Price List View",
         Icons.price_check,
-          Routes.PRICELIST
+        Routes.PRICELIST,
         // const PriceListScreen(),
       ),
       _menuTile(
         context,
         "Export Data",
         Icons.upload_file,
-        Routes.EXPORTDATA
+        Routes.EXPORTDATA,
         // const ExportDataView(),
       ),
       _menuTile(
         context,
         "Payment Reminder",
         Icons.payments,
-       Routes.PAYREMINDER
+        Routes.PAYREMINDER,
         // const PaymentReminderScreen(),
       ),
       _menuTile(
         context,
         "Party Sales Target",
         Icons.document_scanner_sharp,
-        Routes.PARTYSALESTARGET
+        Routes.PARTYSALESTARGET,
         // const PartySalesTargetScreen(),
       ),
       _menuTile(
         context,
         "Stock View",
         Icons.inventory_2,
-      Routes.STOCKVIEW
+        Routes.STOCKVIEW,
         // const StockViewScreen(),
+      ), _menuTile(
+        context,
+        "Purchase",
+        Icons.list_alt_sharp,
+        Routes.PURCHASE,
       ),
     ],
   );
 }
 
 Widget _menuTile(
-    BuildContext context,
-    String title,
-    IconData icon,
+  BuildContext context,
+  String title,
+  IconData icon,
   String routeName,
-    ) {
+) {
   return Card(
     elevation: 4,
     child: InkWell(
       onTap: () {
-
-        if(routeName.isNotEmpty) {
+        if (routeName.isNotEmpty) {
           Get.toNamed(routeName);
         }
       },
@@ -115,4 +125,3 @@ Widget _menuTile(
     ),
   );
 }
-//

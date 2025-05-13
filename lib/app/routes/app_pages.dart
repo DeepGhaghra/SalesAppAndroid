@@ -19,6 +19,9 @@ import 'package:sales_app/app/modules/sales_entries/bindings/sales_entries_bindi
 import 'package:sales_app/app/modules/sales_entries/views/sales_entries_view.dart';
 import 'package:sales_app/app/modules/stock_view/bindings/stock_binding.dart';
 import 'package:sales_app/app/modules/stock_view/views/stock_view.dart';
+import 'package:sales_app/app/modules/purchase/bindings/purchase_binding.dart';
+import 'package:sales_app/app/modules/purchase/views/purchase_view.dart';
+
 
 import '../modules/Dashboard/bindings/dashboard_binding.dart';
 import '../modules/Dashboard/views/dashboard_view.dart';
@@ -98,6 +101,12 @@ class AppPages {
       name: _Paths.STOCKVIEW,
       page: () => StockViewScreen(),
       binding: StockBinding(),
+    ),
+
+     GetPage(
+      name: _Paths.PURCHASE,
+      page: () => PurchaseViewScreen(),
+      binding: PurchaseBinding(),
     ),
   ];
 }

@@ -8,13 +8,13 @@ abstract class Routes {
   static const PARTYFOLDER = _Paths.PARTYFOLDER;
 
   static const PARTYLIST = _Paths.PARTYLIST;
-  static const PARTYSALESTARGET= _Paths.PARTYSALESTARGET;
-  static const PAYREMINDER= _Paths.PAYREMINDER;
-  static const PRICELIST= _Paths.PRICELIST;
+  static const PARTYSALESTARGET = _Paths.PARTYSALESTARGET;
+  static const PAYREMINDER = _Paths.PAYREMINDER;
+  static const PRICELIST = _Paths.PRICELIST;
   static const PRODUCTLIST = _Paths.PRODUCTLIST;
   static const SALESENTRIES = _Paths.SALESENTRIES;
   static const STOCKVIEW = _Paths.STOCKVIEW;
-
+  static const PURCHASE = _Paths.PURCHASE;
 }
 
 abstract class _Paths {
@@ -23,11 +23,11 @@ abstract class _Paths {
   static const EXPORTDATA = '/exportData';
   static const PARTYFOLDER = '/partyFolder';
   static const PARTYLIST = '/partyList';
-  static const  PARTYSALESTARGET = '/partySalesTarget';
-  static const  PAYREMINDER=   '/payReminder';
-  static const  PRICELIST=   '/priceList';
-  static const  PRODUCTLIST=   '/productList';
-  static const  SALESENTRIES=   '/salesEntries';
-  static const  STOCKVIEW=   '/stockView';
-
+  static const PARTYSALESTARGET = '/partySalesTarget';
+  static const PAYREMINDER = '/payReminder';
+  static const PRICELIST = '/priceList';
+  static const PRODUCTLIST = '/productList';
+  static const SALESENTRIES = '/salesEntries';
+  static const STOCKVIEW = '/stockView';
+  static const PURCHASE = '/purchase';
 }
