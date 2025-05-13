@@ -20,7 +20,7 @@ class SalesEntriesView extends GetView<SalesEntriesController> {
   @override
   Widget build(BuildContext context) {
     return BaseScreen(
-   nameOfScreen: "Sales Entry",
+      nameOfScreen: "Sales Entry",
       body: Obx(() {
         if (controller.isLoading.value) {
           return const Center(child: CircularProgressIndicator());
@@ -45,16 +45,17 @@ class SalesEntriesView extends GetView<SalesEntriesController> {
 
                   items:
                       controller.partyList.map((element) {
-                        return Item(id: element.id, name: element.partyName  , isSelected: element.isSelected);
+                        return Item(
+                          id: element.id,
+                          name: element.partyName,
+                          isSelected: element.isSelected,
+                        );
                       }).toList(),
 
                   onItemSelected: (Item selectedItem) {
-
                     controller.selectedPartyName.value = selectedItem.name;
                     controller.selectedParty.value = selectedItem.id;
                     controller.selectedPartyItem = selectedItem;
-
-
                   },
                 ),
 
@@ -72,7 +73,6 @@ class SalesEntriesView extends GetView<SalesEntriesController> {
 
                   selectedItems:
                       controller.selectedProducts.map((id) {
-                       
                         final design = controller.designList.firstWhere(
                           (d) => d.id == id,
                           orElse:
@@ -303,10 +303,6 @@ class SalesEntriesView extends GetView<SalesEntriesController> {
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
                   onPressed: () async {
-
-
-
-
                     // Validation checks
                     if ((controller.selectedPartyName.value ?? '').isEmpty) {
                       Get.snackbar(
@@ -421,7 +417,7 @@ class SalesEntriesView extends GetView<SalesEntriesController> {
                                 ),
                           );
                           return {
-                            'design_id': designId,
+                            'design_id': design.designId,
                             'designNo': design.designNo ?? 'N/A',
                             'brand': design.folderName ?? 'N/A',
                             'location': design.location ?? 'N/A',
@@ -439,10 +435,7 @@ class SalesEntriesView extends GetView<SalesEntriesController> {
                           };
                         }).toList();
                     // Save sales entry first
-                controller.saveSalesEntry(
-                     onSuccess: () {
-                       controller.printSalesEntry(invoiceNo, partyName, products);
-                     },
+                    controller.saveSalesEntry(
                       invoiceNo: invoiceNo,
                       date: DateFormat(
                         'yyyy-MM-dd',
@@ -461,8 +454,7 @@ class SalesEntriesView extends GetView<SalesEntriesController> {
                               )
                               .toList(),
                     );
-
-
+                    controller.printSalesEntry(invoiceNo, partyName, products);
                   },
                   child: const Text(
                     "Print Challan",
@@ -473,7 +465,8 @@ class SalesEntriesView extends GetView<SalesEntriesController> {
             ),
           ),
         );
-      }), globalKey: GlobalKey(),
+      }),
+      globalKey: GlobalKey(),
     );
   }
 
@@ -628,7 +621,6 @@ class SalesEntriesView extends GetView<SalesEntriesController> {
 
   // Product Card UI (for displaying product, qty, rate, and amount)
   Widget _buildProductCard(String uniqueId) {
-    
     final design = controller.designList.firstWhere(
       (d) => d.id == uniqueId,
       orElse:

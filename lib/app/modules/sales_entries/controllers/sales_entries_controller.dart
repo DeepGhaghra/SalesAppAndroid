@@ -516,7 +516,6 @@ class SalesEntriesController extends GetxController {
   }
 
   Future<void> saveSalesEntry({
-
     VoidCallback? onSuccess,
     required String invoiceNo,
     required String date,
@@ -560,14 +559,7 @@ class SalesEntriesController extends GetxController {
         'Sales entry added and stock updated',
         snackPosition: SnackPosition.BOTTOM,
       );
-
-      Future.delayed(const Duration(seconds: 3), () {
-        onSuccess?.call();
-      });
-
-
-
-  } catch (e) {
+    } catch (e) {
       Get.snackbar(
         'Error',
         'Failed to add sales entry: $e',
@@ -579,29 +571,25 @@ class SalesEntriesController extends GetxController {
     }
   }
 
-
   void resetUI() {
     selectedProducts.clear();
-
     qtyControllers.clear();
     rateControllers.clear();
     amounts.clear();
     selectedParty.value = null;
     selectedPartyName.value = null;
     rateFieldColor.clear();
+    selectedPartyItem = null;
+
     selectedProducts.refresh();
     selectedParty.refresh();
-selectedPartyItem = null;
-
     selectedPartyName.refresh();
 
-
-
-
-
+    // Reload the design list to get updated quantities
+    fetchStocks().then((_) {
+      designList.refresh();
+    });
     // Generate new invoice number without resetting date
     generateInvoiceNo();
-
-
   }
 }
