@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get/get_core/src/get_main.dart';
 
-import '../utils/globle_controller.dart';
+import '../utils/global_controller.dart';
 import 'app_bar.dart';
 import 'app_drawer.dart';
 

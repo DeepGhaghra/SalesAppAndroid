@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-import '../utils/globle_controller.dart';
+import '../utils/global_controller.dart';
 
 import 'base_image.dart';
 

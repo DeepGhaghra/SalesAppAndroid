@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../routes/app_pages.dart';
-import '../utils/globle_controller.dart';
+import '../utils/global_controller.dart';
 
 class AppDrawer extends GetView<GlobalController> {
   const AppDrawer({super.key});

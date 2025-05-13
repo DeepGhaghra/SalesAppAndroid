@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get_navigation/src/root/get_material_app.dart';
 import 'package:sales_app/app/modules/Dashboard/bindings/dashboard_binding.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'app/core/utils/ NotificationScheduler.dart';
+import 'app/core/utils/NotificationScheduler.dart';
 
 import 'app/routes/app_pages.dart';
 
