@@ -6,22 +6,23 @@ class Item {
   final String name;
   bool isSelected;
 
+  Item({required this.id, required this.name, this.isSelected = false});
 
-  Item({required this.id, required this.name  , this.isSelected = false });
+  set value(Null value) {}
 }
 
 class SearchableDropdown extends StatefulWidget {
   final List<Item> items;
-Item? selectedItem;
+  Item? selectedItem;
 
   final void Function(Item selectedItem) onItemSelected;
   final String hintText;
   final String labelText; // <-- new label
 
- SearchableDropdown({
+  SearchableDropdown({
     Key? key,
     required this.items,
-    this.selectedItem ,
+    this.selectedItem,
     required this.onItemSelected,
     this.hintText = "Please select an option",
     this.labelText = "Please select an option", // default label
@@ -42,7 +43,6 @@ class _SearchableDropdownState extends State<SearchableDropdown> {
 
     super.initState();
     selectedItem = widget.selectedItem;
-
   }
 
   void _toggleDropdown() {
@@ -57,24 +57,25 @@ class _SearchableDropdownState extends State<SearchableDropdown> {
 
   OverlayEntry _createOverlay() {
     return OverlayEntry(
-      builder: (context) => Positioned(
-        width: MediaQuery.of(context).size.width - 30,
-        child: CompositedTransformFollower(
-          offset: const Offset(0, 55), // Adjusted to fit label + container
-          link: _layerLink,
-          showWhenUnlinked: false,
-          child: _DropdownPopup(
-            items: widget.items,
-            onItemSelected: (item) {
-              setState(() {
-                selectedItem = item;
-              });
-              widget.onItemSelected(item);
-              _toggleDropdown();
-            },
+      builder:
+          (context) => Positioned(
+            width: MediaQuery.of(context).size.width - 30,
+            child: CompositedTransformFollower(
+              offset: const Offset(0, 55), // Adjusted to fit label + container
+              link: _layerLink,
+              showWhenUnlinked: false,
+              child: _DropdownPopup(
+                items: widget.items,
+                onItemSelected: (item) {
+                  setState(() {
+                    selectedItem = item;
+                  });
+                  widget.onItemSelected(item);
+                  _toggleDropdown();
+                },
+              ),
+            ),
           ),
-        ),
-      ),
     );
   }
 
@@ -111,7 +112,8 @@ class _SearchableDropdownState extends State<SearchableDropdown> {
                   Text(
                     selectedItem?.name ?? widget.hintText,
                     style: TextStyle(
-                        color: selectedItem != null ? Colors.black : Colors.grey),
+                      color: selectedItem != null ? Colors.black : Colors.grey,
+                    ),
                   ),
                   const Icon(Icons.arrow_drop_down),
                 ],
@@ -128,10 +130,7 @@ class _DropdownPopup extends StatefulWidget {
   final List<Item> items;
   final void Function(Item item) onItemSelected;
 
-  const _DropdownPopup({
-    required this.items,
-    required this.onItemSelected,
-  });
+  const _DropdownPopup({required this.items, required this.onItemSelected});
 
   @override
   State<_DropdownPopup> createState() => _DropdownPopupState();
@@ -155,9 +154,13 @@ class _DropdownPopupState extends State<_DropdownPopup> {
         if (value.isEmpty) {
           filteredItems = widget.items;
         } else {
-          filteredItems = widget.items.where((item) =>
-              item.name.toLowerCase().contains(value.toLowerCase())
-          ).toList();
+          filteredItems =
+              widget.items
+                  .where(
+                    (item) =>
+                        item.name.toLowerCase().contains(value.toLowerCase()),
+                  )
+                  .toList();
         }
       });
     });

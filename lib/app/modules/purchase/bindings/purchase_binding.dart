@@ -1,9 +1,15 @@
 import 'package:get/get.dart';
-import 'package:sales_app/app/modules/purchase/controllers/purchase_controller.dart';
+import '../controllers/purchase_controller.dart';
+import '../repository/purchase_repository.dart';
 
 class PurchaseBinding extends Bindings {
   @override
   void dependencies() {
-    Get.lazyPut<PurchaseController>(() => PurchaseController());
+    Get.lazyPut<PurchaseRepository>(() => PurchaseRepository());
+    Get.lazyPut<PurchaseController>(
+      () => PurchaseController(
+        purchaseRepository: Get.find<PurchaseRepository>(),
+      ),
+    );
   }
 }

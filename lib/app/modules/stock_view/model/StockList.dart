@@ -54,4 +54,6 @@ class StockList {
           json['rate'] != null ? int.tryParse(json['rate'].toString()) ?? 0 : 0,
     );
   }
+
+  get locationName => null;
 }
