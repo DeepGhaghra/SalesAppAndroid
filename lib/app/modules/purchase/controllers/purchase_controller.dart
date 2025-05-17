@@ -38,6 +38,7 @@ class PurchaseController extends GetxController {
   final RxnString selectedLocationName = RxnString();
   Item? selectedLocationItem;
   final RxnInt locationId = RxnInt();
+  final TextEditingController qtyController = TextEditingController();
 
   @override
   void onInit() {
@@ -121,7 +122,7 @@ class PurchaseController extends GetxController {
   Future<void> addPurchaseWithFunction() async {
     try {
       isLoading(true);
-  
+
       // Enhanced validation
       if (selectedParty.value == null) {
         throw Exception('Please select a party');
@@ -149,7 +150,13 @@ class PurchaseController extends GetxController {
 
       await fetchPurchases();
       clearForm();
-      Get.snackbar('Success', 'Purchase entry saved successfully');
+      Get.snackbar(
+        'Success',
+        'Purchase entry saved successfully',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.green,
+        colorText: Colors.white,
+      );
     } catch (e) {
       final errorMessage =
           e is PostgrestException ? e.details ?? e.message : e.toString();
@@ -157,14 +164,15 @@ class PurchaseController extends GetxController {
         'Error',
         'Failed to add purchase: $errorMessage',
         duration: const Duration(seconds: 5),
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
       );
       rethrow;
     } finally {
       isLoading(false);
     }
   }
-
-  final TextEditingController qtyController = TextEditingController();
 
   void clearForm() {
     // Clear values
@@ -187,5 +195,11 @@ class PurchaseController extends GetxController {
     _formKey.currentState?.reset();
     fetchStocks(); // Refresh design list
     fetchLocation();
+  }
+
+  @override
+  void onClose() {
+    qtyController.dispose();
+    super.onClose();
   }
 }
