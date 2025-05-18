@@ -5,7 +5,6 @@ import 'package:sales_app/app/core/common/search_drop_down.dart';
 import 'package:sales_app/app/modules/purchase/model/PurchaseList.dart';
 import 'package:sales_app/app/modules/purchase/repository/purchase_repository.dart';
 import 'package:sales_app/app/modules/sales_entries/model/PartyInfo.dart';
-import 'package:sales_app/app/modules/stock_view/model/StockList.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:sales_app/app/modules/sales_entries/repository/sales_entries_repository.dart';
 
@@ -18,6 +17,8 @@ class PurchaseController extends GetxController {
 
   var purchases = <Purchaselist>[].obs;
   var isLoading = false.obs;
+  var isSaving = false.obs;
+
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
   Rx<DateTime> selectedDate = DateTime.now().obs;
@@ -39,6 +40,8 @@ class PurchaseController extends GetxController {
   Item? selectedLocationItem;
   final RxnInt locationId = RxnInt();
   final TextEditingController qtyController = TextEditingController();
+  RxList<BulkPurchaseItem> bulkPurchaseItems = RxList<BulkPurchaseItem>();
+RxList<Purchaselist> recentPurchases = RxList<Purchaselist>();
 
   @override
   void onInit() {
@@ -54,6 +57,7 @@ class PurchaseController extends GetxController {
       await fetchParties();
       await fetchStocks();
       await fetchLocation();
+      addNewRow();
     } catch (e) {
       debugPrint('Error loading data: $e');
     } finally {
@@ -64,11 +68,6 @@ class PurchaseController extends GetxController {
   Future<void> fetchStocks() async {
     try {
       final designResponse = await purchaseRepository.fetchDesigns();
-      if (designResponse.isEmpty) {
-        print("WARNING: Design list is empty!");
-      } else {
-        print("INFO: Design list fetched successfully.");
-      }
 
       // Update designlist with fetched data and sort
       designList.value = designResponse;
@@ -81,12 +80,6 @@ class PurchaseController extends GetxController {
   Future<void> fetchLocation() async {
     try {
       final response = await purchaseRepository.fetchLocation();
-
-      if (response.isEmpty) {
-        print("WARNING: Location list is empty!");
-      } else {
-        print("INFO: Location list fetched successfully.");
-      }
 
       locationList.value = response;
       locationList.sort(
@@ -109,46 +102,79 @@ class PurchaseController extends GetxController {
     }
   }
 
+  void addNewRow() {
+    bulkPurchaseItems.add(BulkPurchaseItem());
+  }
+
+  void removeRow(int index) {
+    if (bulkPurchaseItems.length > 1) {
+      bulkPurchaseItems.removeAt(index);
+    } else {
+      Get.snackbar(
+        'Warning',
+        'At least one row is required',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    }
+  }
+
   Future<void> fetchPurchases() async {
     try {
       isLoading(true);
       var result = await purchaseRepository.getAllPurchases();
-      purchases.assignAll(result);
+      recentPurchases.assignAll(result);
     } finally {
       isLoading(false);
     }
   }
 
-  Future<void> addPurchaseWithFunction() async {
+  Future<void> saveBulkPurchase() async {
     try {
       isLoading(true);
 
       // Enhanced validation
       if (selectedParty.value == null) {
         throw Exception('Please select a party');
+      } // Validate all rows
+      for (var item in bulkPurchaseItems) {
+        if (item.designId == null || item.designId == 0) {
+          throw Exception('Please select a design in all rows');
+        }
+        if (item.locationId == null || item.locationId == 0) {
+          throw Exception('Please select a location in all rows');
+        }
+        if (item.quantity == null || item.quantity! <= 0) {
+          throw Exception('Quantity must be greater than 0 in all rows');
+        }
       }
-      if (designId.value == null || designId.value == 0) {
-        throw Exception('Please select a valid design');
-      }
-      if (locationId.value == null || locationId.value == 0) {
-        throw Exception('Please select a valid location');
-      }
-      if (qty.value <= 0) {
-        throw Exception('Quantity must be greater than 0');
-      }
+      // Prepare batch data
+      final batchData =
+          bulkPurchaseItems.map((item) {
+            return {
+              'date': DateFormat('yyyy-MM-dd').format(selectedDate.value),
+              'party_id': int.parse(selectedParty.value!),
+              'design_id': item.designId,
+              'location_id': item.locationId,
+              'quantity': item.quantity,
+            };
+          }).toList();
 
-      final response = await Supabase.instance.client.rpc(
-        'purchase_entry_and_update',
-        params: {
-          '_date': DateFormat('yyyy-MM-dd').format(selectedDate.value),
-          '_party_id': int.parse(selectedParty.value!),
-          '_design_id': designId.value,
-          '_quantity': qty.value,
-          '_location_id': locationId.value,
-        },
-      );
+      // Call Supabase function for each item (or implement a bulk RPC if available)
+      for (var item in batchData) {
+        await Supabase.instance.client.rpc(
+          'purchase_entry_and_update',
+          params: {
+            '_date': item['date'],
+            '_party_id': item['party_id'],
+            '_design_id': item['design_id'],
+            '_quantity': item['quantity'],
+            '_location_id': item['location_id'],
+          },
+        );
+      }
 
       await fetchPurchases();
+      
       clearForm();
       Get.snackbar(
         'Success',
@@ -190,11 +216,12 @@ class PurchaseController extends GetxController {
     selectedPartyItem = null;
     selectedDesignItem = null;
     selectedLocationItem = null;
-
+    bulkPurchaseItems.clear();
     // Reset form if needed
     _formKey.currentState?.reset();
     fetchStocks(); // Refresh design list
     fetchLocation();
+    addNewRow();
   }
 
   @override
@@ -202,4 +229,21 @@ class PurchaseController extends GetxController {
     qtyController.dispose();
     super.onClose();
   }
+}
+
+class BulkPurchaseItem {
+  int? designId;
+  String? designName;
+  int? locationId;
+  String? locationName;
+  int? quantity;
+  TextEditingController quantityController = TextEditingController();
+
+  BulkPurchaseItem({
+    this.designId,
+    this.designName,
+    this.locationId,
+    this.locationName,
+    this.quantity,
+  });
 }

@@ -56,14 +56,19 @@ class _SearchableDropdownState extends State<SearchableDropdown> {
   }
 
   OverlayEntry _createOverlay() {
+    final renderBox = context.findRenderObject() as RenderBox;
+    final size = renderBox.size;
+    final offset = renderBox.localToGlobal(Offset.zero);
+
     return OverlayEntry(
       builder:
           (context) => Positioned(
-            width: MediaQuery.of(context).size.width - 30,
-            child: CompositedTransformFollower(
-              offset: const Offset(0, 55), // Adjusted to fit label + container
-              link: _layerLink,
-              showWhenUnlinked: false,
+            left: offset.dx,
+            top: offset.dy + size.height,
+            width: size.width,
+            child: Material(
+              elevation: 4,
+              borderRadius: BorderRadius.circular(8),
               child: _DropdownPopup(
                 items: widget.items,
                 onItemSelected: (item) {
