@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:sales_app/app/core/common/base_screen.dart';
+import 'package:universal_html/js.dart';
 import '../controllers/stock_controller.dart';
 
 class StockViewScreen extends GetView<StockController> {
@@ -59,43 +60,107 @@ class StockViewScreen extends GetView<StockController> {
             padding: const EdgeInsets.all(10.0),
             child: Column(
               children: [
-                TextField(
-                  controller: controller.searchController,
-                  decoration: InputDecoration(
-                    labelText: 'Search Design Number',
-                    suffixIcon: IconButton(
-                      icon: Icon(Icons.search),
-                      onPressed:
-                          () => controller.fetchStock(
-                            controller.searchController.text,
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: controller.searchController,
+                        decoration: InputDecoration(
+                          labelText: 'Search Design Number',
+                          suffixIcon: IconButton(
+                            icon: Icon(Icons.search),
+                            onPressed:
+                                () => controller.fetchStock(
+                                  controller.searchController.text,
+                                ),
                           ),
+                        ),
+                      ),
                     ),
-                  ),
+                    SizedBox(width: 12),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Color.fromARGB(255, 231, 245, 247),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: IconButton(
+                        icon: Icon(
+                          Icons.swap_horiz,
+                          color: Color.fromARGB(255, 52, 125, 131),
+                        ),
+                        tooltip: "Stock Transfer",
+                        onPressed: _navigateToStockTransfer,
+                      ),
+                    ),
+                  ],
                 ),
-                SizedBox(height: 10),
-                Obx(
-                  () =>
-                      controller.isLoading.value
-                          ? CircularProgressIndicator()
-                          : Expanded(
-                            child: ListView.builder(
+                Expanded(
+                  child: Obx(
+                    () =>
+                        controller.isLoading.value
+                            ? Center(
+                              child: SizedBox(
+                                height: 48,
+                                width: 48,
+                                child: RefreshProgressIndicator(),
+                              ),
+                            )
+                            : ListView.builder(
                               itemCount: controller.stockData.length,
                               itemBuilder: (context, index) {
                                 final stock = controller.stockData[index];
                                 return Card(
-                                  child: ListTile(
-                                    title: Text(
-                                      stock['design_id']['design_no'] ??
-                                          'No Design',
+                                  color: (Colors.grey.shade200),
+                                  margin: const EdgeInsets.symmetric(
+                                    vertical: 4,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 16,
                                     ),
-                                    subtitle: Text(
-                                      'Location: ${stock['location_id']['name']}\nQuantity: ${stock['quantity']}',
+                                    child: Row(
+                                      children: [
+                                        Expanded(
+                                          flex: 2, // 50%
+                                          child: Text(
+                                            stock['design_id']['design_no'] ??
+                                                'No Design',
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                        Expanded(
+                                          flex: 1, // 25%
+                                          child: Text(
+                                            "Location: ${stock['location_id']['name']}",
+                                            textAlign: TextAlign.center,
+                                            style: const TextStyle(
+                                              color: Colors.grey,
+                                            ),
+                                          ),
+                                        ),
+                                        Expanded(
+                                          flex: 1, // 25%
+                                          child: Text(
+                                            "Qty: ${stock['quantity']}",
+                                            textAlign: TextAlign.right,
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
                                 );
                               },
                             ),
-                          ),
+                  ),
                 ),
               ],
             ),
@@ -110,6 +175,13 @@ class StockViewScreen extends GetView<StockController> {
           ),
         ],
       ),
+    );
+  }
+
+  void _navigateToStockTransfer() {
+    Navigator.push(
+      context as BuildContext,
+      MaterialPageRoute(builder: (context) => StockViewScreen()),
     );
   }
 }
