@@ -68,7 +68,7 @@ class StockViewScreen extends GetView<StockController> {
                       child: TextField(
                         controller: controller.searchController,
                         decoration: InputDecoration(
-                          labelText: 'Search Design Number',
+                          labelText: 'Search Design or Location',
                           suffixIcon: IconButton(
                             icon: Icon(Icons.search),
                             onPressed:
@@ -77,7 +77,7 @@ class StockViewScreen extends GetView<StockController> {
                                 ),
                           ),
                         ),
-                        onSubmitted:
+                        onChanged:
                             (value) => controller.fetchStock(value.trim()),
                       ),
                     ),
