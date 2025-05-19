@@ -6,10 +6,8 @@ import 'package:sales_app/app/modules/party_folders/views/party_view.dart';
 import 'package:sales_app/app/modules/party_list/bindings/party_list_binding.dart';
 import 'package:sales_app/app/modules/party_list/views/party_list_view.dart';
 import 'package:sales_app/app/modules/party_sales_target/bindings/party_sales_target_binding.dart';
-import 'package:sales_app/app/modules/party_sales_target/controllers/party_sales_target_controller.dart';
 import 'package:sales_app/app/modules/party_sales_target/views/party_sales_target_view.dart';
 import 'package:sales_app/app/modules/pay_reminders/bindings/pay_reminder_binding.dart';
-import 'package:sales_app/app/modules/pay_reminders/controllers/pay_reminder_controller.dart';
 import 'package:sales_app/app/modules/pay_reminders/views/pay_reminder_view.dart';
 import 'package:sales_app/app/modules/price_list/bindings/price_list_binding.dart';
 import 'package:sales_app/app/modules/price_list/views/price_list_view.dart';
@@ -21,12 +19,10 @@ import 'package:sales_app/app/modules/stock_view/bindings/stock_binding.dart';
 import 'package:sales_app/app/modules/stock_view/views/stock_view.dart';
 import 'package:sales_app/app/modules/purchase/bindings/purchase_binding.dart';
 import 'package:sales_app/app/modules/purchase/views/purchase_view.dart';
-
+import 'package:sales_app/app/modules/stock_view/views/stocktransfer_view.dart';
 
 import '../modules/Dashboard/bindings/dashboard_binding.dart';
 import '../modules/Dashboard/views/dashboard_view.dart';
-
-
 
 part 'app_routes.dart';
 
@@ -36,7 +32,6 @@ class AppPages {
   static const INITIAL = Routes.DASHBOARD;
 
   static final routes = [
-
     GetPage(
       name: _Paths.DASHBOARD,
       page: () => DashboardView(),
@@ -73,11 +68,6 @@ class AppPages {
       binding: PayReminderBinding(),
     ),
 
-    GetPage(
-      name: _Paths.PAYREMINDER,
-      page: () => PayReminderView(),
-      binding: PayReminderBinding(),
-    ),
 
     GetPage(
       name: _Paths.PRODUCTLIST,
@@ -103,10 +93,15 @@ class AppPages {
       binding: StockBinding(),
     ),
 
-     GetPage(
+    GetPage(
       name: _Paths.PURCHASE,
       page: () => PurchaseViewScreen(),
       binding: PurchaseBinding(),
+    ),
+    GetPage(
+      name: _Paths.STOCKTRANSFER,
+      page: () => StockTransferScreen(),
+      binding: StockTransferBinding(),
     ),
   ];
 }

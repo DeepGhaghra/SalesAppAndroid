@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:sales_app/app/core/common/base_screen.dart';
+import 'package:sales_app/app/modules/stock_view/views/stocktransfer_view.dart';
+import 'package:sales_app/app/routes/app_pages.dart';
 import 'package:universal_html/js.dart';
 import '../controllers/stock_controller.dart';
 
@@ -71,10 +73,12 @@ class StockViewScreen extends GetView<StockController> {
                             icon: Icon(Icons.search),
                             onPressed:
                                 () => controller.fetchStock(
-                                  controller.searchController.text,
+                                  controller.searchController.text.trim(),
                                 ),
                           ),
                         ),
+                        onSubmitted:
+                            (value) => controller.fetchStock(value.trim()),
                       ),
                     ),
                     SizedBox(width: 12),
@@ -179,9 +183,6 @@ class StockViewScreen extends GetView<StockController> {
   }
 
   void _navigateToStockTransfer() {
-    Navigator.push(
-      context as BuildContext,
-      MaterialPageRoute(builder: (context) => StockViewScreen()),
-    );
+    Get.toNamed(Routes.STOCKTRANSFER);
   }
 }

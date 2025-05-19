@@ -10,6 +10,7 @@ class StockController extends GetxController {
 
   final RxList<Map<String, dynamic>> stockData = <Map<String, dynamic>>[].obs;
   final RxBool isLoading = false.obs;
+  
   void onInit() {
     super.onInit();
     fetchStock('');
@@ -17,12 +18,31 @@ class StockController extends GetxController {
 
   Future<void> fetchStock(String searchTerm) async {
     isLoading.value = true;
-    final response = await Supabase.instance.client
-        .from('stock')
-        .select('quantity, design_id!inner(design_no), location_id(name)')
-        .ilike('design_id.design_no', '%$searchTerm%');
-    stockData.value = List<Map<String, dynamic>>.from(response);
-    isLoading.value = false;
+    try {
+      final query = Supabase.instance.client
+          .from('stock')
+          .select('quantity, design_id!inner(design_no), location_id(name)');
+
+      // Apply search filter if term exists
+      final dynamic response =
+          searchTerm.isEmpty
+              ? await query
+              : await query.ilike('design_id.design_no', '%$searchTerm%');
+
+      final data = List<Map<String, dynamic>>.from(response);
+
+      data.sort(
+        (a, b) => (a['design_id']['design_no'] as String)
+            .toLowerCase()
+            .compareTo((b['design_id']['design_no'] as String).toLowerCase()),
+      );
+      stockData.value = data;
+    } catch (e) {
+      print('Error fetching stock: $e');
+      stockData.value = [];
+    } finally {
+      isLoading.value = false;
+    }
   }
 
   Future<void> addStock(BuildContext context) async {
@@ -38,7 +58,7 @@ class StockController extends GetxController {
     }
 
     await Supabase.instance.client.from('stock').insert({
-      'design_id': int.parse(product), // Assuming design_id is numeric
+      'design_id': int.parse(product),
       'quantity': quantity,
       'location_id': int.parse(location),
     });
