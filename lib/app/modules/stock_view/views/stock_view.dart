@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:sales_app/app/core/common/base_screen.dart';
 import '../controllers/stock_controller.dart';
 
 class StockViewScreen extends GetView<StockController> {
@@ -48,56 +49,66 @@ class StockViewScreen extends GetView<StockController> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text('Stock View')),
-      body: Padding(
-        padding: const EdgeInsets.all(10.0),
-        child: Column(
-          children: [
-            TextField(
-              controller: controller.searchController,
-              decoration: InputDecoration(
-                labelText: 'Search Design Number',
-                suffixIcon: IconButton(
-                  icon: Icon(Icons.search),
-                  onPressed:
-                      () => controller.fetchStock(
-                        controller.searchController.text,
-                      ),
+    return BaseScreen(
+      globalKey: GlobalKey(),
+
+      nameOfScreen: 'Stock View',
+      body: Stack(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(10.0),
+            child: Column(
+              children: [
+                TextField(
+                  controller: controller.searchController,
+                  decoration: InputDecoration(
+                    labelText: 'Search Design Number',
+                    suffixIcon: IconButton(
+                      icon: Icon(Icons.search),
+                      onPressed:
+                          () => controller.fetchStock(
+                            controller.searchController.text,
+                          ),
+                    ),
+                  ),
                 ),
-              ),
+                SizedBox(height: 10),
+                Obx(
+                  () =>
+                      controller.isLoading.value
+                          ? CircularProgressIndicator()
+                          : Expanded(
+                            child: ListView.builder(
+                              itemCount: controller.stockData.length,
+                              itemBuilder: (context, index) {
+                                final stock = controller.stockData[index];
+                                return Card(
+                                  child: ListTile(
+                                    title: Text(
+                                      stock['design_id']['design_no'] ??
+                                          'No Design',
+                                    ),
+                                    subtitle: Text(
+                                      'Location: ${stock['location_id']['name']}\nQuantity: ${stock['quantity']}',
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                ),
+              ],
             ),
-            SizedBox(height: 10),
-            Obx(
-              () =>
-                  controller.isLoading.value
-                      ? CircularProgressIndicator()
-                      : Expanded(
-                        child: ListView.builder(
-                          itemCount: controller.stockData.length,
-                          itemBuilder: (context, index) {
-                            final stock = controller.stockData[index];
-                            return Card(
-                              child: ListTile(
-                                title: Text(
-                                  stock['design_id']['design_no'] ??
-                                      'No Design',
-                                ),
-                                subtitle: Text(
-                                  'Location: ${stock['location_id']['name']}\nQuantity: ${stock['quantity']}',
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
+          ),
+          Positioned(
+            bottom: 16,
+            right: 16,
+            child: FloatingActionButton(
+              onPressed: () => _showAddStockSheet(context),
+              child: Icon(Icons.add),
             ),
-          ],
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showAddStockSheet(context),
-        child: Icon(Icons.add),
+          ),
+        ],
       ),
     );
   }
