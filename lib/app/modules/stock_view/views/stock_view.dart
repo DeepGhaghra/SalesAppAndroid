@@ -24,25 +24,9 @@ class StockViewScreen extends GetView<StockController> {
                 "Add Stock",
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
-              Expanded(
-                flex: 1,
-                child: SearchableDropdown(
-                  labelText: 'Select Design',
-                  hintText: 'Select Design',
-                  items:
-                      controller.designList
-                          .map(
-                            (d) => Item(
-                              id: d.designId.toString(),
-                              name: d.designNo ?? 'Unknown Design',
-                            ),
-                          )
-                          .toList(),
-                  onItemSelected: (Item selected) {
-                    controller.selectedDesignId.value =
-                        int.tryParse(selected.id) ?? 0;
-                  },
-                ),
+              TextField(
+                controller: controller.productController,
+                decoration: InputDecoration(labelText: "Design Number"),
               ),
               TextField(
                 controller: controller.quantityController,
