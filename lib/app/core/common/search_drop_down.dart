@@ -62,7 +62,13 @@ class _SearchableDropdownState extends State<SearchableDropdown> {
 
     return OverlayEntry(
       builder:
-          (context) => Positioned(
+           (context) => GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onTap: () {
+        _toggleDropdown(); // closes dropdown on outside tap
+      },
+      child: Stack(
+        children: [Positioned(
             left: offset.dx,
             top: offset.dy + size.height,
             width: size.width,
@@ -76,13 +82,17 @@ class _SearchableDropdownState extends State<SearchableDropdown> {
                     selectedItem = item;
                   });
                   widget.onItemSelected(item);
-                  _toggleDropdown();
-                },
+                                    _toggleDropdown();
+
+               },
               ),
             ),
           ),
-    );
-  }
+        ],
+      ),
+    ),
+  );
+}
 
   @override
   void dispose() {
