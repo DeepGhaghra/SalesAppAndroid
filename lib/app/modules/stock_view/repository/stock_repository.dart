@@ -8,8 +8,7 @@ class StockRepository {
 
   Future<List<StockList>> fetchStockList() async {
     try {
-      final response = await _supabase.from('stock')
-      .select('''
+      final response = await _supabase.from('stock').select('''
           *, products_design!inner(*,
             product_head:product_head_id(*,
             folder:folder_id(folder_name))
@@ -19,6 +18,28 @@ class StockRepository {
       return response.map<StockList>((p) => StockList.fromJson(p)).toList();
     } catch (e) {
       print('Error in StockRepository: $e');
+      rethrow;
+    }
+  }
+
+  Future<List<StockList>> fetchDesigns() async {
+    try {
+      final response = await _supabaseService.fetchAll('products_design');
+      return response.map<StockList>((item) {
+        return StockList(
+          id: item['id'] as String? ?? '0',
+          designId: item['design_id'] ?? item['id'] as String?,
+          designNo: item['design_no'] as String? ?? 'No Design Number',
+          locationid: '',
+          location: '',
+          qtyAtLocation: '',
+          folderName: '',
+          productId: '',
+          rate: 0,
+        );
+      }).toList();
+    } catch (e) {
+      print('Error in PurchaseRepository: $e');
       rethrow;
     }
   }

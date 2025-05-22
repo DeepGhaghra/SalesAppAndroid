@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:sales_app/app/core/common/base_screen.dart';
-import 'package:sales_app/app/modules/stock_view/views/stocktransfer_view.dart';
+import 'package:sales_app/app/core/common/search_drop_down.dart';
 import 'package:sales_app/app/routes/app_pages.dart';
-import 'package:universal_html/js.dart';
 import '../controllers/stock_controller.dart';
 
 class StockViewScreen extends GetView<StockController> {
@@ -25,9 +24,25 @@ class StockViewScreen extends GetView<StockController> {
                 "Add Stock",
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
-              TextField(
-                controller: controller.productController,
-                decoration: InputDecoration(labelText: "Design Number"),
+              Expanded(
+                flex: 1,
+                child: SearchableDropdown(
+                  labelText: 'Select Design',
+                  hintText: 'Select Design',
+                  items:
+                      controller.designList
+                          .map(
+                            (d) => Item(
+                              id: d.designId.toString(),
+                              name: d.designNo ?? 'Unknown Design',
+                            ),
+                          )
+                          .toList(),
+                  onItemSelected: (Item selected) {
+                    controller.selectedDesignId.value =
+                        int.tryParse(selected.id) ?? 0;
+                  },
+                ),
               ),
               TextField(
                 controller: controller.quantityController,

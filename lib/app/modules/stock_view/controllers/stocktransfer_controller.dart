@@ -1,77 +1,182 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:sales_app/app/data/service/supabase_service.dart';
+import 'package:sales_app/app/modules/stock_view/model/StockList.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class StockTransferController extends GetxController {
-  final designNumber = ''.obs;
-  final fromLocation = ''.obs;
-  final toLocation = ''.obs;
-  final quantity = ''.obs;
-
-  final quantityController = TextEditingController();
-
   final isLoading = false.obs;
 
   final SupabaseClient supabase = Supabase.instance.client;
+  final SupabaseService _supabaseService = SupabaseService();
 
-  List<String> locations = [];
+  final RxList<DesignModel> designList = <DesignModel>[].obs;
+  final RxList<LocationModel> allLocations = <LocationModel>[].obs;
+  final RxList<LocationModel> availableFromLocations = <LocationModel>[].obs;
+  final RxMap<int, int> designLocationQuantities = <int, int>{}.obs;
+
+  final Rxn<DesignModel> selectedDesign = Rxn<DesignModel>();
+  final Rxn<LocationModel> selectedFromLocation = Rxn<LocationModel>();
+  final Rxn<LocationModel> selectedToLocation = Rxn<LocationModel>();
+  final quantityController = TextEditingController();
 
   @override
   void onInit() {
-    fetchLocations();
     super.onInit();
+    loadData();
   }
 
-  Future<void> fetchLocations() async {
-    final response = await supabase.from('locations').select();
-    locations = List<String>.from(response.map((e) => e['name']));
-    update();
+  Future<void> loadData() async {
+    isLoading.value = true;
+    try {
+      await Future.wait([fetchDesignsWithStock(), fetchAllLocations()]);
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  Future<void> fetchAllLocations() async {
+    try {
+      final data = await _supabaseService.fetchAll('locations');
+      allLocations.value = data.map((e) => LocationModel.fromJson(e)).toList();
+    } catch (e) {
+      Get.snackbar("Error", "Failed to load locations: $e");
+    }
+  }
+
+  Future<void> fetchDesignsWithStock() async {
+    try {
+      final response = await supabase
+          .from('stock')
+          .select('''
+            design_id, 
+            products_design!inner(id, design_no),
+            quantity
+          ''')
+          .gt('quantity', 0);
+
+      designList.value =
+          response
+              .map(
+                (e) => DesignModel.fromJson({
+                  'id': e['products_design']['id'],
+                  'design_no': e['products_design']['design_no'],
+                }),
+              )
+              .toList();
+    } catch (e) {
+      Get.snackbar("Error", "Failed to load designs: $e");
+    }
+  }
+
+  Future<void> fetchAvailableFromLocations(int designId) async {
+    try {
+      final response = await supabase
+          .from('stock')
+          .select('''
+            location_id, 
+            locations!inner(id, name),
+            quantity,design_id
+          ''')
+          .eq('design_id', designId)
+          .gt('quantity', 0);
+
+      // Clear previous data
+      availableFromLocations.clear();
+      designLocationQuantities.clear();
+
+      availableFromLocations.value =
+          response
+              .where((item) => item['design_id'] == designId)
+              .map(
+                (e) => LocationModel.fromJson({
+                  'id': e['locations']['id'],
+                  'name': e['locations']['name'],
+                }),
+              )
+              .toList();
+
+      // Store quantities for display
+      for (var item in response) {
+        designLocationQuantities[item['location_id']] = item['quantity'];
+      }
+    } catch (e) {
+      Get.snackbar("Error", "Failed to load available locations: $e");
+    }
   }
 
   Future<void> transferStock() async {
-    if (fromLocation.value == toLocation.value) {
+    if (selectedFromLocation.value!.id == selectedToLocation.value!.id) {
       Get.snackbar(
         "Invalid Transfer",
         "From and To locations cannot be the same.",
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
       );
       return;
     }
-
+    if (selectedDesign.value == null ||
+        selectedFromLocation.value == null ||
+        selectedToLocation.value == null ||
+        quantityController.text.isEmpty ||
+        int.tryParse(quantityController.text) == null ||
+        int.parse(quantityController.text) <= 0) {
+      Get.snackbar(
+        "Error",
+        "Please fill all fields",
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+      return;
+    }
     isLoading.value = true;
+    final quantity = int.tryParse(quantityController.text) ?? 0;
 
     try {
-      // Get design ID
-      final designResponse =
-          await supabase
-              .from('products_design')
-              .select('id')
-              .eq('design_no', designNumber.value)
-              .maybeSingle();
-
-      if (designResponse == null) {
-        Get.snackbar("Error", "Design not found");
-        return;
-      }
-
-      final designId = designResponse['id'];
-
-      // Find or create stock entries and update accordingly
-      await supabase.rpc(
-        'transfer_stock',
-        params: {
-          'design_id': designId,
-          'from_location': fromLocation.value,
-          'to_location': toLocation.value,
-          'qty': int.parse(quantity.value),
-        },
-      );
+      // Insert into stock_transfers table
+      await supabase.from('stock_transfers').insert({
+        'design_id': selectedDesign.value!.id,
+        'from_location_id': selectedFromLocation.value!.id,
+        'to_location_id': selectedToLocation.value!.id,
+        'quantity': quantity,
+      });
 
       Get.back();
       Get.snackbar("Success", "Stock transferred successfully!");
+      // Clear form and refresh data
+      selectedDesign.value = null;
+      selectedFromLocation.value = null;
+      selectedToLocation.value = null;
+      quantityController.clear();
+      availableFromLocations.clear();
+      designLocationQuantities.clear();
     } catch (e) {
       Get.snackbar("Error", "Failed to transfer stock: $e");
     } finally {
       isLoading.value = false;
     }
+  }
+
+  Future<void> onDesignChanged(DesignModel? design) async {
+    selectedDesign.value = design;
+    selectedFromLocation.value = null;
+    availableFromLocations.value = [];
+    selectedToLocation.value = null;
+    availableFromLocations.clear();
+    designLocationQuantities.clear();
+    quantityController.clear();
+    if (design != null) {
+      isLoading.value = true;
+      fetchAvailableFromLocations(design.id);
+      isLoading.value = false;
+    }
+  }
+
+  @override
+  void onClose() {
+    quantityController.dispose();
+    super.onClose();
   }
 }

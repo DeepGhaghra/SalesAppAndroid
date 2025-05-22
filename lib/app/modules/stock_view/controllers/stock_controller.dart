@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:sales_app/app/modules/stock_view/model/StockList.dart';
+import 'package:sales_app/app/modules/stock_view/repository/stock_repository.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class StockController extends GetxController {
@@ -10,10 +12,27 @@ class StockController extends GetxController {
 
   final RxList<Map<String, dynamic>> stockData = <Map<String, dynamic>>[].obs;
   final RxBool isLoading = false.obs;
+  RxList<StockList> designList = RxList();
+  RxList<StockList> locationList = RxList();
+
+  final StockRepository _stockRepository = StockRepository();
+
+  get selectedDesignId => null;
 
   void onInit() {
     super.onInit();
-    fetchStock('');
+    loadData();
+  }
+
+  Future<void> loadData() async {
+    try {
+      isLoading.value = true;
+      fetchStock('');
+    } catch (e) {
+      debugPrint('Error loading data: $e');
+    } finally {
+      isLoading.value = false;
+    }
   }
 
   Future<void> fetchStock(String searchTerm) async {
@@ -76,5 +95,17 @@ class StockController extends GetxController {
     locationController.clear();
     Get.back(); // Close the bottom sheet
     fetchStock('');
+  }
+
+  Future<void> fetchDesign() async {
+    try {
+      final designResponse = await _stockRepository.fetchDesigns();
+
+      // Update designlist with fetched data and sort
+      designList.value = designResponse;
+      designList.sort((a, b) => (a.designNo ?? '').compareTo(b.designNo ?? ''));
+    } catch (e) {
+      print('Error in PurchaseController while fetching stocks: $e');
+    }
   }
 }

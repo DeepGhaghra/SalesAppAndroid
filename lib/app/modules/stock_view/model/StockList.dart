@@ -57,3 +57,37 @@ class StockList {
 
   get locationName => null;
 }
+
+class DesignModel {
+  final int id;
+  final String designNo;
+  final String? fromLocation;
+  DesignModel({
+    required this.id,
+    required this.designNo,
+    required this.fromLocation,
+  });
+  factory DesignModel.fromJson(Map<String, dynamic> json) {
+    return DesignModel(
+      id: json['id'],
+      designNo: json['design_no'],
+      fromLocation: json['location_id'],
+    );
+  }
+
+  @override
+  String toString() => designNo;
+}
+
+class LocationModel {
+  final int id;
+  final String name;
+
+  LocationModel({required this.id, required this.name});
+  factory LocationModel.fromJson(Map<String, dynamic> json) {
+    return LocationModel(id: json['id'], name: json['name']);
+  }
+
+  @override
+  String toString() => name;
+}
