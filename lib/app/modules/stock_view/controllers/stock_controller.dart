@@ -40,7 +40,7 @@ class StockController extends GetxController {
     try {
       final response = await Supabase.instance.client
           .from('stock')
-          .select('quantity, design_id!inner(design_no), location_id(name)');
+          .select('quantity, design_id!inner(design_no), location_id(name)').gt('quantity', 0);;
 
       final data = List<Map<String, dynamic>>.from(response);
       final filtered =

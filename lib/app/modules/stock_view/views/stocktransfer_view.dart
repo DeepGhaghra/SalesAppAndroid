@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:sales_app/app/core/common/search_drop_down.dart';
 import 'package:sales_app/app/modules/stock_view/model/StockList.dart';
+import 'package:sales_app/app/routes/app_pages.dart';
 import '../controllers/stocktransfer_controller.dart';
 
 class StockTransferScreen extends StatelessWidget {
@@ -14,7 +15,7 @@ class StockTransferScreen extends StatelessWidget {
         title: const Text("Stock Transfer"),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => Get.back(),
+          onPressed: () => Get.toNamed(Routes.STOCKVIEW),
         ),
       ),
       body: Obx(
@@ -23,6 +24,10 @@ class StockTransferScreen extends StatelessWidget {
           child: Column(
             children: [
               SearchableDropdown(
+                key: ValueKey(
+                  controller.selectedDesign.value?.id ?? 'no_design_none',
+                ),
+
                 items:
                     controller.designList
                         .map(
@@ -177,7 +182,7 @@ class StockTransferScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 12),
                       OutlinedButton(
-                        onPressed: () => Get.back(),
+                        onPressed: () => Get.toNamed(Routes.STOCKVIEW),
                         child: const Text("Back to Stock View"),
                       ),
                     ],

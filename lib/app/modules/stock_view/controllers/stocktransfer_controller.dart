@@ -54,9 +54,19 @@ class StockTransferController extends GetxController {
             quantity
           ''')
           .gt('quantity', 0);
+      // Create map to keep unique designs by design_id
+      final Map<int, Map<String, dynamic>> uniqueDesigns = {};
 
+      for (final row in response) {
+        final id = row['design_id'] as int;
+
+        // Only add if design_id not already in map
+        if (!uniqueDesigns.containsKey(id)) {
+          uniqueDesigns[id] = row;
+        }
+      }
       designList.value =
-          response
+          uniqueDesigns.values
               .map(
                 (e) => DesignModel.fromJson({
                   'id': e['products_design']['id'],
@@ -131,27 +141,46 @@ class StockTransferController extends GetxController {
       );
       return;
     }
-    isLoading.value = true;
     final quantity = int.tryParse(quantityController.text) ?? 0;
+    final designId = selectedDesign.value!.id;
+    final fromLocationId = selectedFromLocation.value!.id;
+    final toLocationId = selectedToLocation.value!.id;
+    // Check available quantity
+    final availableQty = designLocationQuantities[fromLocationId] ?? 0;
+    if (quantity > availableQty) {
+      Get.snackbar(
+        "Insufficient Stock",
+        "Available quantity: $availableQty",
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+      return;
+    }
+    isLoading.value = true;
 
     try {
       // Insert into stock_transfers table
-      await supabase.from('stock_transfers').insert({
-        'design_id': selectedDesign.value!.id,
-        'from_location_id': selectedFromLocation.value!.id,
-        'to_location_id': selectedToLocation.value!.id,
-        'quantity': quantity,
-      });
+      await supabase.rpc(
+        'transfer_stock_func',
+        params: {
+          'p_design_id': designId,
+          'p_from_location_id': fromLocationId,
+          'p_to_location_id': toLocationId,
+          'p_quantity': quantity,
+        },
+      );
 
-      Get.back();
-      Get.snackbar("Success", "Stock transferred successfully!");
-      // Clear form and refresh data
-      selectedDesign.value = null;
-      selectedFromLocation.value = null;
-      selectedToLocation.value = null;
-      quantityController.clear();
-      availableFromLocations.clear();
-      designLocationQuantities.clear();
+      Get.snackbar(
+        "Success",
+        "Stock transferred successfully!",
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.green,
+        colorText: Colors.white,
+      );
+      await loadData();
+
+      resetUI();
     } catch (e) {
       Get.snackbar("Error", "Failed to transfer stock: $e");
     } finally {
@@ -172,6 +201,18 @@ class StockTransferController extends GetxController {
       fetchAvailableFromLocations(design.id);
       isLoading.value = false;
     }
+  }
+
+  void resetUI() {
+    selectedDesign.value = null;
+    selectedFromLocation.value = null;
+    selectedToLocation.value = null;
+    quantityController.clear();
+
+    availableFromLocations.clear();
+    designLocationQuantities.clear();
+
+    update();
   }
 
   @override
