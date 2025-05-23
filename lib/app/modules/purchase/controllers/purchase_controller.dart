@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:sales_app/app/core/common/search_drop_down.dart';
+import 'package:sales_app/app/core/utils/snackbar_utils.dart';
 import 'package:sales_app/app/modules/purchase/model/PurchaseList.dart';
 import 'package:sales_app/app/modules/purchase/repository/purchase_repository.dart';
 import 'package:sales_app/app/modules/sales_entries/model/PartyInfo.dart';
@@ -41,7 +42,7 @@ class PurchaseController extends GetxController {
   final RxnInt locationId = RxnInt();
   final TextEditingController qtyController = TextEditingController();
   RxList<BulkPurchaseItem> bulkPurchaseItems = RxList<BulkPurchaseItem>();
-RxList<Purchaselist> recentPurchases = RxList<Purchaselist>();
+  RxList<Purchaselist> recentPurchases = RxList<Purchaselist>();
 
   @override
   void onInit() {
@@ -110,11 +111,7 @@ RxList<Purchaselist> recentPurchases = RxList<Purchaselist>();
     if (bulkPurchaseItems.length > 1) {
       bulkPurchaseItems.removeAt(index);
     } else {
-      Get.snackbar(
-        'Warning',
-        'At least one row is required',
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      SnackbarUtil.showError('At least one row is required');
     }
   }
 
@@ -174,26 +171,13 @@ RxList<Purchaselist> recentPurchases = RxList<Purchaselist>();
       }
 
       await fetchPurchases();
-      
+
       clearForm();
-      Get.snackbar(
-        'Success',
-        'Purchase entry saved successfully',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.green,
-        colorText: Colors.white,
-      );
+      SnackbarUtil.showSuccess('Purchase entry saved successfully');
     } catch (e) {
       final errorMessage =
           e is PostgrestException ? e.details ?? e.message : e.toString();
-      Get.snackbar(
-        'Error',
-        'Failed to add purchase: $errorMessage',
-        duration: const Duration(seconds: 5),
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-      );
+      SnackbarUtil.showError('Failed to add purchase: $errorMessage');
       rethrow;
     } finally {
       isLoading(false);

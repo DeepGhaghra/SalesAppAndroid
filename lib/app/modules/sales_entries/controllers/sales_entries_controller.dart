@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
+import 'package:sales_app/app/core/utils/snackbar_utils.dart';
 import 'package:sales_app/app/modules/stock_view/repository/stock_repository.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/common/search_drop_down.dart';
@@ -553,20 +554,9 @@ class SalesEntriesController extends GetxController {
         );
       }
       resetUI();
-
-      Get.snackbar(
-        'Success',
-        'Sales entry added and stock updated',
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      SnackbarUtil.showSuccess('Sales entry added and stock updated');
     } catch (e) {
-      Get.snackbar(
-        'Error',
-        'Failed to add sales entry: $e',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-      );
+      SnackbarUtil.showError('Failed to add sales entry: $e');
       rethrow;
     }
   }

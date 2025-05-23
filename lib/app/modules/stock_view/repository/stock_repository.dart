@@ -44,6 +44,22 @@ class StockRepository {
     }
   }
 
+  Future<List<Map<String, dynamic>>> fetchLocations() async {
+    final result = await _supabaseService.fetchAll('locations');
+    return List<Map<String, dynamic>>.from(result);
+  }
+
+  Future<void> addLocation(String name) async {
+    await _supabaseService.insert('locations', {'name': name});
+  }
+
+  Future<void> updateLocation(int id, String name) async {
+    await _supabaseService.update('locations', id, {
+      'name': name,
+      'modified_at': DateTime.now().toUtc().toIso8601String(),
+    });
+  }
+
   Future<int> getTotalCount() async {
     try {
       return await _supabaseService.getTotalCount('stock');

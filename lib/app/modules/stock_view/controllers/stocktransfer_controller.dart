@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:sales_app/app/core/utils/snackbar_utils.dart';
 import 'package:sales_app/app/data/service/supabase_service.dart';
 import 'package:sales_app/app/modules/stock_view/model/StockList.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -40,7 +41,7 @@ class StockTransferController extends GetxController {
       final data = await _supabaseService.fetchAll('locations');
       allLocations.value = data.map((e) => LocationModel.fromJson(e)).toList();
     } catch (e) {
-      Get.snackbar("Error", "Failed to load locations: $e");
+      SnackbarUtil.showError("Failed to load locations: $e");
     }
   }
 
@@ -75,7 +76,7 @@ class StockTransferController extends GetxController {
               )
               .toList();
     } catch (e) {
-      Get.snackbar("Error", "Failed to load designs: $e");
+      SnackbarUtil.showError("Failed to load designs: $e");
     }
   }
 
@@ -111,19 +112,16 @@ class StockTransferController extends GetxController {
         designLocationQuantities[item['location_id']] = item['quantity'];
       }
     } catch (e) {
-      Get.snackbar("Error", "Failed to load available locations: $e");
+      SnackbarUtil.showError("Failed to load available locations: $e");
     }
   }
 
   Future<void> transferStock() async {
     if (selectedFromLocation.value!.id == selectedToLocation.value!.id) {
-      Get.snackbar(
-        "Invalid Transfer",
-        "From and To locations cannot be the same.",
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
+      SnackbarUtil.showError(
+        "Invalid Transfer, From and To locations cannot be the same.",
       );
+
       return;
     }
     if (selectedDesign.value == null ||
@@ -132,13 +130,7 @@ class StockTransferController extends GetxController {
         quantityController.text.isEmpty ||
         int.tryParse(quantityController.text) == null ||
         int.parse(quantityController.text) <= 0) {
-      Get.snackbar(
-        "Error",
-        "Please fill all fields",
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-      );
+      SnackbarUtil.showError("Please fill all fields");
       return;
     }
     final quantity = int.tryParse(quantityController.text) ?? 0;
@@ -148,12 +140,8 @@ class StockTransferController extends GetxController {
     // Check available quantity
     final availableQty = designLocationQuantities[fromLocationId] ?? 0;
     if (quantity > availableQty) {
-      Get.snackbar(
-        "Insufficient Stock",
-        "Available quantity: $availableQty",
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
+      SnackbarUtil.showError(
+        "Insufficient Stock,Available quantity: $availableQty",
       );
       return;
     }
@@ -170,19 +158,13 @@ class StockTransferController extends GetxController {
           'p_quantity': quantity,
         },
       );
+      SnackbarUtil.showSuccess("Stock transferred successfully!");
 
-      Get.snackbar(
-        "Success",
-        "Stock transferred successfully!",
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.green,
-        colorText: Colors.white,
-      );
       await loadData();
 
       resetUI();
     } catch (e) {
-      Get.snackbar("Error", "Failed to transfer stock: $e");
+      SnackbarUtil.showError("Failed to transfer stock: $e");
     } finally {
       isLoading.value = false;
     }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:sales_app/app/core/utils/snackbar_utils.dart';
 import 'package:sales_app/app/modules/stock_view/model/StockList.dart';
 import 'package:sales_app/app/modules/stock_view/repository/stock_repository.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -16,9 +17,11 @@ class StockController extends GetxController {
   RxList<StockList> locationList = RxList();
 
   final StockRepository _stockRepository = StockRepository();
+  final SupabaseClient supabase = Supabase.instance.client;
 
-  get selectedDesignId => null;
-
+  RxList<Map<String, dynamic>> locationSuggestions =
+      <Map<String, dynamic>>[].obs;
+  int? selectedLocationId;
   void onInit() {
     super.onInit();
     loadData();
@@ -40,7 +43,9 @@ class StockController extends GetxController {
     try {
       final response = await Supabase.instance.client
           .from('stock')
-          .select('quantity, design_id!inner(design_no), location_id(name)').gt('quantity', 0);;
+          .select('quantity, design_id!inner(design_no), location_id(name)')
+          .gt('quantity', 0);
+      ;
 
       final data = List<Map<String, dynamic>>.from(response);
       final filtered =
@@ -61,40 +66,13 @@ class StockController extends GetxController {
 
       stockData.value = filtered;
     } catch (e) {
-      print('Error fetching stock: $e');
+      SnackbarUtil.showError(
+        'Error fetching stock data. Please try again later.',
+      );
       stockData.value = [];
     } finally {
       isLoading.value = false;
     }
-  }
-
-  Future<void> addStock(BuildContext context) async {
-    final product = productController.text;
-    final quantity = int.tryParse(quantityController.text) ?? 0;
-    final location = locationController.text;
-
-    if (product.isEmpty || quantity <= 0 || location.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Please enter valid details!')));
-      return;
-    }
-
-    await Supabase.instance.client.from('stock').insert({
-      'design_id': int.parse(product),
-      'quantity': quantity,
-      'location_id': int.parse(location),
-    });
-
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('Stock added successfully!')));
-
-    productController.clear();
-    quantityController.clear();
-    locationController.clear();
-    Get.back(); // Close the bottom sheet
-    fetchStock('');
   }
 
   Future<void> fetchDesign() async {
@@ -105,7 +83,9 @@ class StockController extends GetxController {
       designList.value = designResponse;
       designList.sort((a, b) => (a.designNo ?? '').compareTo(b.designNo ?? ''));
     } catch (e) {
-      print('Error in PurchaseController while fetching stocks: $e');
+      SnackbarUtil.showError(
+        'Error in StcokController while fetching stocks: $e',
+      );
     }
   }
 }

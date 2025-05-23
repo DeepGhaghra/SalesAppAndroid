@@ -16,6 +16,8 @@ abstract class Routes {
   static const STOCKVIEW = _Paths.STOCKVIEW;
   static const PURCHASE = _Paths.PURCHASE;
   static const STOCKTRANSFER = _Paths.STOCKTRANSFER;
+  static const ADDNEWSTOCK = _Paths.ADDNEWSTOCK;
+  static const LOCATIONS = _Paths.LOCATIONS;
 }
 
 abstract class _Paths {
@@ -32,4 +34,6 @@ abstract class _Paths {
   static const STOCKVIEW = '/stockView';
   static const PURCHASE = '/purchase';
   static const STOCKTRANSFER = '/stockTransfer';
+  static const ADDNEWSTOCK = '/addNewStock';
+  static const LOCATIONS = '/location';
 }

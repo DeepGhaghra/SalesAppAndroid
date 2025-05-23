@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:sales_app/app/core/utils/snackbar_utils.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:fluttertoast/fluttertoast.dart';
@@ -45,11 +46,12 @@ class ProductListController extends GetxController {
           .from('product_head')
           .select('id, product_name, product_rate');
       List<Map<String, dynamic>> cloudProducts =
-      List<Map<String, dynamic>>.from(response);
-      cloudProducts.sort((a, b) =>
-          (a['product_name'] as String).toLowerCase().compareTo(
-            (b['product_name'] as String).toLowerCase(),
-          ));
+          List<Map<String, dynamic>>.from(response);
+      cloudProducts.sort(
+        (a, b) => (a['product_name'] as String).toLowerCase().compareTo(
+          (b['product_name'] as String).toLowerCase(),
+        ),
+      );
 
       productList.assignAll(cloudProducts);
       filteredList.assignAll(cloudProducts);
@@ -64,7 +66,7 @@ class ProductListController extends GetxController {
 
   Future<void> _loadCachedProducts() async {
     List<Map<String, dynamic>> cachedProducts =
-    await DatabaseHelper.instance.getCachedProducts();
+        await DatabaseHelper.instance.getCachedProducts();
     productList.assignAll(cachedProducts);
     filteredList.assignAll(cachedProducts);
   }
@@ -75,14 +77,14 @@ class ProductListController extends GetxController {
     supabase
         .channel('public:product_head')
         .onPostgresChanges(
-      event: PostgresChangeEvent.all,
-      schema: 'public',
-      table: 'product_head',
-      callback: (payload) {
-        print("🔄 Realtime update received: $payload");
-        _syncFromSupabase();
-      },
-    )
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'product_head',
+          callback: (payload) {
+            print("🔄 Realtime update received: $payload");
+            _syncFromSupabase();
+          },
+        )
         .subscribe();
   }
 
@@ -91,10 +93,12 @@ class ProductListController extends GetxController {
       filteredList.assignAll(productList);
       return;
     }
-    filteredList.assignAll(productList.where((product) {
-      final name = product['product_name'].toLowerCase();
-      return name.contains(query.toLowerCase());
-    }).toList());
+    filteredList.assignAll(
+      productList.where((product) {
+        final name = product['product_name'].toLowerCase();
+        return name.contains(query.toLowerCase());
+      }).toList(),
+    );
   }
 
   void showAddProductDialog() {
@@ -120,10 +124,7 @@ class ProductListController extends GetxController {
           ],
         ),
         actions: [
-          TextButton(
-            onPressed: () => Get.back(),
-            child: Text("Cancel"),
-          ),
+          TextButton(onPressed: () => Get.back(), child: Text("Cancel")),
           ElevatedButton(
             onPressed: () async {
               await _addProduct(
@@ -150,9 +151,10 @@ class ProductListController extends GetxController {
     }
 
     final nameLower = name.toLowerCase();
-    final existingNames = productList
-        .map((e) => (e['product_name'] as String).toLowerCase())
-        .toList();
+    final existingNames =
+        productList
+            .map((e) => (e['product_name'] as String).toLowerCase())
+            .toList();
 
     if (existingNames.contains(nameLower)) {
       Fluttertoast.showToast(msg: "⚠️ Product '$name' already exists!");
@@ -164,7 +166,7 @@ class ProductListController extends GetxController {
         'product_name': name,
         'product_rate': sellRate,
       });
-      Fluttertoast.showToast(msg: "✅ Product '$name' added successfully!");
+      SnackbarUtil.showSuccess("✅ Product '$name' added successfully!");
       Get.back();
       await _syncFromSupabase();
     } catch (e) {
@@ -176,8 +178,9 @@ class ProductListController extends GetxController {
   void editProduct(int index) {
     final old = filteredList[index];
     final nameController = TextEditingController(text: old['product_name']);
-    final rateController =
-    TextEditingController(text: old['product_rate'].toString());
+    final rateController = TextEditingController(
+      text: old['product_rate'].toString(),
+    );
 
     Get.dialog(
       AlertDialog(
@@ -198,14 +201,14 @@ class ProductListController extends GetxController {
           ],
         ),
         actions: [
-          TextButton(
-            onPressed: () => Get.back(),
-            child: Text("Cancel"),
-          ),
+          TextButton(onPressed: () => Get.back(), child: Text("Cancel")),
           ElevatedButton(
             onPressed: () async {
-              await _updateProduct(index, nameController.text.trim(),
-                  rateController.text.trim());
+              await _updateProduct(
+                index,
+                nameController.text.trim(),
+                rateController.text.trim(),
+              );
             },
             child: Text("Update"),
           ),
@@ -215,7 +218,10 @@ class ProductListController extends GetxController {
   }
 
   Future<void> _updateProduct(
-      int index, String updatedName, String updatedRate) async {
+    int index,
+    String updatedName,
+    String updatedRate,
+  ) async {
     if (updatedName.isEmpty || updatedRate.isEmpty) {
       Fluttertoast.showToast(msg: "⚠️ Fields cannot be empty!");
       return;
@@ -232,9 +238,10 @@ class ProductListController extends GetxController {
     final oldRate = old['product_rate'];
 
     final nameLower = updatedName.toLowerCase();
-    final existingNames = productList
-        .map((e) => (e['product_name'] as String).toLowerCase())
-        .toList();
+    final existingNames =
+        productList
+            .map((e) => (e['product_name'] as String).toLowerCase())
+            .toList();
 
     if (nameLower == oldName.toLowerCase() && rate == oldRate) {
       Get.back();
@@ -244,18 +251,14 @@ class ProductListController extends GetxController {
 
     if (existingNames.contains(nameLower) &&
         nameLower != oldName.toLowerCase()) {
-      Fluttertoast.showToast(
-          msg: "⚠️ Product '$updatedName' already exists!");
+      Fluttertoast.showToast(msg: "⚠️ Product '$updatedName' already exists!");
       return;
     }
 
     try {
       await supabase
           .from('product_head')
-          .update({
-        'product_name': updatedName,
-        'product_rate': rate,
-      })
+          .update({'product_name': updatedName, 'product_rate': rate})
           .eq('id', old['id']);
       Fluttertoast.showToast(msg: "✅ Product updated successfully!");
       Get.back();
@@ -266,4 +269,3 @@ class ProductListController extends GetxController {
     }
   }
 }
-

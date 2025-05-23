@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:multi_select_flutter/dialog/multi_select_dialog_field.dart';
 import 'package:multi_select_flutter/util/multi_select_item.dart';
 import 'package:sales_app/app/core/common/base_screen.dart';
+import 'package:sales_app/app/core/utils/snackbar_utils.dart';
 import 'package:sales_app/app/modules/stock_view/model/StockList.dart';
 
 import '../../../core/common/app_drawer.dart';
@@ -131,23 +132,13 @@ class SalesEntriesView extends GetView<SalesEntriesController> {
                     // Validation checks
                     if ((controller.selectedPartyName.value ?? '').isEmpty ||
                         controller.selectedParty.value!.isEmpty) {
-                      Get.snackbar(
-                        'Error',
-                        'Please select a party',
-                        snackPosition: SnackPosition.BOTTOM,
-                        backgroundColor: Colors.red,
-                        colorText: Colors.white,
-                      );
+                      SnackbarUtil.showError('Please select a party');
                       return;
                     }
 
                     if (controller.selectedProducts.isEmpty) {
-                      Get.snackbar(
-                        'Error',
+                      SnackbarUtil.showError(
                         'Please select atleast one design',
-                        snackPosition: SnackPosition.BOTTOM,
-                        backgroundColor: Colors.red,
-                        colorText: Colors.white,
                       );
                       return;
                     }
@@ -166,13 +157,7 @@ class SalesEntriesView extends GetView<SalesEntriesController> {
                     }
 
                     if (hasInvalidQuantity) {
-                      Get.snackbar(
-                        'Error',
-                        'Please enter valid qty',
-                        snackPosition: SnackPosition.BOTTOM,
-                        backgroundColor: Colors.red,
-                        colorText: Colors.white,
-                      );
+                      SnackbarUtil.showError('Please enter valid qty');
                       return;
                     }
                     // Check if entered qty > available stock
@@ -208,12 +193,8 @@ class SalesEntriesView extends GetView<SalesEntriesController> {
                     }
 
                     if (exceedsStock) {
-                      Get.snackbar(
-                        'Warning',
+                      SnackbarUtil.showError(
                         'Stock Not availble,please recheck all designs',
-                        snackPosition: SnackPosition.BOTTOM,
-                        backgroundColor: Colors.orange,
-                        colorText: Colors.black,
                       );
                       return;
                     }
@@ -231,12 +212,8 @@ class SalesEntriesView extends GetView<SalesEntriesController> {
                     }
 
                     if (hasInvalidRate) {
-                      Get.snackbar(
-                        'Error',
+                      SnackbarUtil.showError(
                         'Please enter valid rate (whole number > 0)',
-                        snackPosition: SnackPosition.BOTTOM,
-                        backgroundColor: Colors.red,
-                        colorText: Colors.white,
                       );
                       return;
                     }
@@ -305,24 +282,15 @@ class SalesEntriesView extends GetView<SalesEntriesController> {
                   onPressed: () async {
                     // Validation checks
                     if ((controller.selectedPartyName.value ?? '').isEmpty) {
-                      Get.snackbar(
-                        'Error',
-                        'Please select a party',
-                        snackPosition: SnackPosition.BOTTOM,
-                        backgroundColor: Colors.red,
-                        colorText: Colors.white,
-                      );
+                      SnackbarUtil.showError('Please select a party');
                       return;
                     }
 
                     if (controller.selectedProducts.isEmpty) {
-                      Get.snackbar(
-                        'Error',
+                      SnackbarUtil.showError(
                         'Please select atleast one design',
-                        snackPosition: SnackPosition.BOTTOM,
-                        backgroundColor: Colors.red,
-                        colorText: Colors.white,
                       );
+
                       return;
                     }
 
@@ -333,13 +301,10 @@ class SalesEntriesView extends GetView<SalesEntriesController> {
                       if (qty.isEmpty ||
                           int.tryParse(qty) == null ||
                           int.parse(qty) <= 0) {
-                        Get.snackbar(
-                          'Error',
+                        SnackbarUtil.showError(
                           'Please enter valid quantity for all designs',
-                          snackPosition: SnackPosition.BOTTOM,
-                          backgroundColor: Colors.red,
-                          colorText: Colors.white,
                         );
+
                         return;
                       }
                     }
@@ -349,12 +314,8 @@ class SalesEntriesView extends GetView<SalesEntriesController> {
                       final rate =
                           controller.rateControllers[product]?.text ?? '';
                       if (!RegExp(r'^[1-9]\d*$').hasMatch(rate)) {
-                        Get.snackbar(
-                          'Error',
+                        SnackbarUtil.showError(
                           'Please enter valid rate (whole number > 0)',
-                          snackPosition: SnackPosition.BOTTOM,
-                          backgroundColor: Colors.red,
-                          colorText: Colors.white,
                         );
                         return;
                       }
@@ -385,13 +346,10 @@ class SalesEntriesView extends GetView<SalesEntriesController> {
                           int.tryParse(design.qtyAtLocation ?? '0') ?? 0;
 
                       if (enteredQty > availableQty) {
-                        Get.snackbar(
-                          'Warning',
+                        SnackbarUtil.showError(
                           'Entered quantity for ${design.designNo} (${design.location}) exceeds available stock ($availableQty)',
-                          snackPosition: SnackPosition.BOTTOM,
-                          backgroundColor: Colors.orange,
-                          colorText: Colors.black,
                         );
+
                         return;
                       }
                     }

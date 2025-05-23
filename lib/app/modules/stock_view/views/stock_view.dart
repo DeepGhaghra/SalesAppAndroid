@@ -1,53 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:sales_app/app/core/common/base_screen.dart';
-import 'package:sales_app/app/core/common/search_drop_down.dart';
 import 'package:sales_app/app/routes/app_pages.dart';
 import '../controllers/stock_controller.dart';
 
 class StockViewScreen extends GetView<StockController> {
   const StockViewScreen({super.key});
-
-  void _showAddStockSheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (context) {
-        return Padding(
-          padding: EdgeInsets.all(16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                "Add Stock",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              TextField(
-                controller: controller.productController,
-                decoration: InputDecoration(labelText: "Design Number"),
-              ),
-              TextField(
-                controller: controller.quantityController,
-                decoration: InputDecoration(labelText: "Quantity"),
-                keyboardType: TextInputType.number,
-              ),
-              TextField(
-                controller: controller.locationController,
-                decoration: InputDecoration(labelText: "Location"),
-              ),
-              SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () => controller.addStock(context),
-                child: Text("Add Stock"),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -93,6 +51,20 @@ class StockViewScreen extends GetView<StockController> {
                         ),
                         tooltip: "Stock Transfer",
                         onPressed: _navigateToStockTransfer,
+                      ),
+                    ),SizedBox(width: 12),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Color.fromARGB(255, 231, 245, 247),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: IconButton(
+                        icon: Icon(
+                          Icons.add_location,
+                          color: Color.fromARGB(255, 52, 125, 131),
+                        ),
+                        tooltip: "Locations",
+                        onPressed: _navigateToLocations,
                       ),
                     ),
                   ],
@@ -172,7 +144,7 @@ class StockViewScreen extends GetView<StockController> {
             bottom: 16,
             right: 16,
             child: FloatingActionButton(
-              onPressed: () => _showAddStockSheet(context),
+              onPressed: () => _navigateToAddnewStock(),
               child: Icon(Icons.add),
             ),
           ),
@@ -184,4 +156,12 @@ class StockViewScreen extends GetView<StockController> {
   void _navigateToStockTransfer() {
     Get.toNamed(Routes.STOCKTRANSFER);
   }
+
+  void _navigateToAddnewStock() {
+    Get.toNamed(Routes.ADDNEWSTOCK);
+  }
+   void _navigateToLocations() {
+    Get.toNamed(Routes.LOCATIONS);
+  }
+  
 }
