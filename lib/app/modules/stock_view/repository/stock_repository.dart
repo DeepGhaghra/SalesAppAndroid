@@ -59,7 +59,11 @@ class StockRepository {
       'modified_at': DateTime.now().toUtc().toIso8601String(),
     });
   }
-
+Future<void> updateDesign(int id, String name) async {
+    await _supabaseService.update('products_design', id, {
+      'design_no': name,
+    });
+  }
   Future<int> getTotalCount() async {
     try {
       return await _supabaseService.getTotalCount('stock');

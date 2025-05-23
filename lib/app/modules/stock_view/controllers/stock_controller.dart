@@ -43,7 +43,7 @@ class StockController extends GetxController {
     try {
       final response = await Supabase.instance.client
           .from('stock')
-          .select('quantity, design_id!inner(design_no), location_id(name)')
+          .select('quantity, design_id!inner(id,design_no), location_id(name)')
           .gt('quantity', 0);
       ;
 
@@ -86,6 +86,17 @@ class StockController extends GetxController {
       SnackbarUtil.showError(
         'Error in StcokController while fetching stocks: $e',
       );
+    }
+  }
+
+  Future<void> updateDesignName(int designId, String newName) async {
+    if (newName.isEmpty) return;
+    try {
+      await _stockRepository.updateDesign(designId, newName);
+      SnackbarUtil.showSuccess("Design Number Updated Successfully");
+      loadData();
+    } catch (e) {
+      SnackbarUtil.showError("Error, Design Number not updated ");
     }
   }
 }

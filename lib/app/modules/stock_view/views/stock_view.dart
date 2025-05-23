@@ -52,7 +52,8 @@ class StockViewScreen extends GetView<StockController> {
                         tooltip: "Stock Transfer",
                         onPressed: _navigateToStockTransfer,
                       ),
-                    ),SizedBox(width: 12),
+                    ),
+                    SizedBox(width: 12),
                     Container(
                       decoration: BoxDecoration(
                         color: Color.fromARGB(255, 231, 245, 247),
@@ -95,18 +96,45 @@ class StockViewScreen extends GetView<StockController> {
                                   child: Padding(
                                     padding: const EdgeInsets.symmetric(
                                       horizontal: 12,
-                                      vertical: 16,
+                                      vertical: 8, // can change to 16 also
                                     ),
                                     child: Row(
                                       children: [
                                         Expanded(
                                           flex: 2, // 50%
-                                          child: Text(
-                                            stock['design_id']['design_no'] ??
-                                                'No Design',
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                            ),
+                                          child: Row(
+                                            children: [
+                                              Expanded(
+                                                child: Text(
+                                                  stock['design_id']['design_no'] ??
+                                                      'No Design',
+                                                  style: const TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                              ),
+                                              IconButton(
+                                                icon: Icon(
+                                                  Icons.edit,
+                                                  size: 16,
+                                                  color: const Color.fromARGB(
+                                                    255,
+                                                    224,
+                                                    133,
+                                                    67,
+                                                  ),
+                                                ),
+                                                tooltip: "Edit Design Name",
+                                                padding: EdgeInsets.zero,
+                                                onPressed: () {
+                                                  _showEditDialog(
+                                                    context,
+                                                    stock,
+                                                    stock['design_id']['design_no'],
+                                                  );
+                                                },
+                                              ),
+                                            ],
                                           ),
                                         ),
                                         Expanded(
@@ -160,8 +188,46 @@ class StockViewScreen extends GetView<StockController> {
   void _navigateToAddnewStock() {
     Get.toNamed(Routes.ADDNEWSTOCK);
   }
-   void _navigateToLocations() {
+
+  void _navigateToLocations() {
     Get.toNamed(Routes.LOCATIONS);
   }
-  
+
+  void _showEditDialog(
+    BuildContext context,
+    dynamic stock,
+    String currentName,
+  ) {
+    final TextEditingController nameController = TextEditingController(
+      text: currentName,
+    );
+    showDialog(
+      context: context,
+      builder: (_) {
+        return AlertDialog(
+          title: const Text('Edit Design'),
+          content: TextField(
+            controller: nameController,
+            decoration: const InputDecoration(labelText: 'Design Name'),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                controller.updateDesignName(
+                  stock['design_id']['id'],
+                  nameController.text.trim(),
+                );
+                Navigator.of(context).pop();
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
+  }
 }
