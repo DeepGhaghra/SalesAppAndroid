@@ -15,4 +15,14 @@ class PriceListRepository {
     final data = response as List;
     return data.cast<Map<String, dynamic>>();
   }
+
+  Future<List<PartyInfo>> searchParties(String query) async {
+    final response = await Supabase.instance.client
+        .from('parties')
+        .select()
+        .ilike('partyname', '%$query%');
+    return (response as List)
+        .map((json) => PartyInfo.fromJson(json))
+        .toList();
+  }
 }

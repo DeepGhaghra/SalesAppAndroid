@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:sales_app/app/core/common/search_drop_down.dart';
 import '../controllers/price_list_controller.dart';
 
 
@@ -38,53 +39,17 @@ class PriceListView extends GetView<PriceListController> {
       ),
     );
   }
+Widget _buildPartyDropdown() {
+  return Obx(() {
+    return SearchableDropdown(
+      items: controller.partyDropdownItems,
+      selectedItem: controller.selectedParty.value,
+      labelText: "Search by Party Name to edit product prices",
+      onItemSelected: controller.onPartySelected,
+    );
+  });
+}
 
-  Widget _buildPartySearchField() {
-    return Obx(() {
-      return Column(
-        children: [
-          TextField(
-            controller: controller.partyController,
-            focusNode: controller.partyFocusNode,
-            decoration: const InputDecoration(
-              labelText: "Search by Party Name to edit product prices",
-              prefixIcon: Icon(Icons.search),
-              border: OutlineInputBorder(),
-            ),
-            onTap: () {
-              if (!controller.isUserTyping.value) {
-                controller.partySuggestions.clear();
-              }
-            },
-            onChanged: controller.fetchPartySuggestions,
-          ),
-          if (controller.partySuggestions.isNotEmpty)
-            Container(
-              margin: const EdgeInsets.only(top: 5),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                border: Border.all(color: Colors.grey),
-                borderRadius: BorderRadius.circular(5),
-              ),
-              child: Column(
-                children: controller.partySuggestions.map((party) {
-                  return ListTile(
-                    title: Text(party),
-                    onTap: () {
-                      controller.partyController.text = party;
-                      controller.partySuggestions.clear();
-                      controller.isUserTyping.value = false;
-                      controller.partyFocusNode.unfocus();
-                      controller.fetchPartyPrices(party);
-                    },
-                  );
-                }).toList(),
-              ),
-            ),
-        ],
-      );
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -94,7 +59,7 @@ class PriceListView extends GetView<PriceListController> {
         padding: const EdgeInsets.all(8.0),
         child: Column(
           children: [
-            _buildPartySearchField(),
+            _buildPartyDropdown(),
             const SizedBox(height: 10),
             Expanded(
               child: Obx(() {
