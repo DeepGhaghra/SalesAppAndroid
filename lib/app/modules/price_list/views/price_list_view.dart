@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:sales_app/app/core/common/base_screen.dart';
 import 'package:sales_app/app/core/common/search_drop_down.dart';
 import '../controllers/price_list_controller.dart';
 
-
 class PriceListView extends GetView<PriceListController> {
-  const PriceListView({super.key});
+  PriceListView({super.key});
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   void _showEditPriceDialog(int productId, String productName) {
     final priceController = TextEditingController(
@@ -21,10 +22,7 @@ class PriceListView extends GetView<PriceListController> {
           keyboardType: TextInputType.number,
         ),
         actions: [
-          TextButton(
-            onPressed: () => Get.back(),
-            child: const Text("Cancel"),
-          ),
+          TextButton(onPressed: () => Get.back(), child: const Text("Cancel")),
           ElevatedButton(
             onPressed: () {
               controller.updatePrice(
@@ -39,22 +37,23 @@ class PriceListView extends GetView<PriceListController> {
       ),
     );
   }
-Widget _buildPartyDropdown() {
-  return Obx(() {
-    return SearchableDropdown(
-      items: controller.partyDropdownItems,
-      selectedItem: controller.selectedParty.value,
-      labelText: "Search by Party Name to edit product prices",
-      onItemSelected: controller.onPartySelected,
-    );
-  });
-}
 
+  Widget _buildPartyDropdown() {
+    return Obx(() {
+      return SearchableDropdown(
+        items: controller.partyDropdownItems,
+        selectedItem: controller.selectedParty.value,
+        labelText: "Search by Party Name to edit product prices",
+        onItemSelected: controller.onPartySelected,
+      );
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text("Price List")),
+    return BaseScreen(
+      globalKey: _scaffoldKey,
+      nameOfScreen: "Price List",
       body: Padding(
         padding: const EdgeInsets.all(8.0),
         child: Column(
@@ -64,7 +63,9 @@ Widget _buildPartyDropdown() {
             Expanded(
               child: Obx(() {
                 if (controller.fullProductList.isEmpty) {
-                  return const Center(child: Text("No products found in database."));
+                  return const Center(
+                    child: Text("No products found in database."),
+                  );
                 }
 
                 return ListView.builder(
@@ -72,13 +73,25 @@ Widget _buildPartyDropdown() {
                   itemBuilder: (context, index) {
                     final product = controller.fullProductList[index];
                     final int productId = product['id'];
-                    final String productName = product['product_name'] ?? 'Unknown Product';
-                    final int basePrice = int.tryParse(product['product_rate']?.toString() ?? '0') ?? 0;
-                    final bool hasCustomPrice = controller.partyPrices.containsKey(productId);
-                    final int? customPrice = hasCustomPrice ? controller.partyPrices[productId] : null;
+                    final String productName =
+                        product['product_name'] ?? 'Unknown Product';
+                    final int basePrice =
+                        int.tryParse(
+                          product['product_rate']?.toString() ?? '0',
+                        ) ??
+                        0;
+                    final bool hasCustomPrice = controller.partyPrices
+                        .containsKey(productId);
+                    final int? customPrice =
+                        hasCustomPrice
+                            ? controller.partyPrices[productId]
+                            : null;
 
                     return Card(
-                      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                      margin: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 6,
+                      ),
                       elevation: 4,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -101,8 +114,15 @@ Widget _buildPartyDropdown() {
                                   ),
                                 ),
                                 IconButton(
-                                  icon: const Icon(Icons.edit, color: Colors.orange),
-                                  onPressed: () => _showEditPriceDialog(productId, productName),
+                                  icon: const Icon(
+                                    Icons.edit,
+                                    color: Colors.orange,
+                                  ),
+                                  onPressed:
+                                      () => _showEditPriceDialog(
+                                        productId,
+                                        productName,
+                                      ),
                                 ),
                               ],
                             ),
@@ -112,13 +132,21 @@ Widget _buildPartyDropdown() {
                               children: [
                                 Row(
                                   children: [
-                                    const Icon(Icons.currency_rupee_sharp, color: Colors.green),
+                                    const Icon(
+                                      Icons.currency_rupee_sharp,
+                                      color: Colors.green,
+                                    ),
                                     const SizedBox(width: 5),
                                     Text(
-                                      hasCustomPrice ? "₹${customPrice!.toStringAsFixed(2)}" : "Not Set",
+                                      hasCustomPrice
+                                          ? "₹${customPrice!.toStringAsFixed(2)}"
+                                          : "Not Set",
                                       style: TextStyle(
                                         fontSize: 16,
-                                        color: hasCustomPrice ? Colors.green : Colors.red,
+                                        color:
+                                            hasCustomPrice
+                                                ? Colors.green
+                                                : Colors.red,
                                         fontWeight: FontWeight.bold,
                                       ),
                                     ),
@@ -126,11 +154,17 @@ Widget _buildPartyDropdown() {
                                 ),
                                 Row(
                                   children: [
-                                    const Icon(Icons.local_offer, color: Colors.blue),
+                                    const Icon(
+                                      Icons.local_offer,
+                                      color: Colors.blue,
+                                    ),
                                     const SizedBox(width: 5),
                                     Text(
                                       "Base: ₹${basePrice.toStringAsFixed(2)}",
-                                      style: const TextStyle(fontSize: 16, color: Colors.blue),
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        color: Colors.blue,
+                                      ),
                                     ),
                                   ],
                                 ),
