@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:fluttertoast/fluttertoast.dart';
 import '../controllers/price_list_controller.dart';
 
 
@@ -108,8 +107,8 @@ class PriceListView extends GetView<PriceListController> {
                   itemBuilder: (context, index) {
                     final product = controller.fullProductList[index];
                     final int productId = product['id'];
-                    final String productName = product['product_name'];
-                    final int basePrice = product['product_rate'] ?? 0;
+                    final String productName = product['product_name'] ?? 'Unknown Product';
+                    final int basePrice = int.tryParse(product['product_rate']?.toString() ?? '0') ?? 0;
                     final bool hasCustomPrice = controller.partyPrices.containsKey(productId);
                     final int? customPrice = hasCustomPrice ? controller.partyPrices[productId] : null;
 

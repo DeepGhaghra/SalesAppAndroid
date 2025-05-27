@@ -45,7 +45,6 @@ class StockController extends GetxController {
           .from('stock')
           .select('quantity, design_id!inner(id,design_no), location_id(name)')
           .gt('quantity', 0);
-      ;
 
       final data = List<Map<String, dynamic>>.from(response);
       final filtered =

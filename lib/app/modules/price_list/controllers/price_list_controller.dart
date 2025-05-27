@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:sales_app/app/modules/price_list/repository/price_list_repository.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 
 class PriceListController extends GetxController {
   final SupabaseClient supabase = Supabase.instance.client;
+  final PriceListRepository repository = PriceListRepository();
 
   var fullProductList = <Map<String, dynamic>>[].obs;
   var partyPrices = <int, dynamic>{}.obs;
@@ -19,7 +21,7 @@ class PriceListController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    fetchAllProducts();
+    fetchProducts();
 
     partyFocusNode.addListener(() {
       if (!partyFocusNode.hasFocus) {
@@ -28,13 +30,25 @@ class PriceListController extends GetxController {
     });
   }
 
-  Future<void> fetchAllProducts() async {
+  Future<void> fetchProducts() async {
     try {
-      final response = await supabase
-          .from('product_head')
-          .select('id, product_name,product_rate')
-          .order('product_name', ascending: true);
-      fullProductList.value = List<Map<String, dynamic>>.from(response);
+      final response = await repository.fetchProducts();
+      print("product before sort: $response");
+      fullProductList.value =
+          response.map((item) {
+            return {
+              'id': item['id'],
+              'product_name': item['product_name'] ?? 'Unknown',
+              'product_rate': item['product_rate'] ?? 0,
+            };
+          }).toList();
+
+      fullProductList.sort((a, b) {
+        final nameA = (a['product_name'] ?? '') as String;
+        final nameB = (b['product_name'] ?? '') as String;
+        return nameA.toLowerCase().compareTo(nameB.toLowerCase());
+      });      print("product after sort: $fullProductList");
+
     } catch (e) {
       print("❌ Error fetching products: $e");
     }
@@ -53,8 +67,9 @@ class PriceListController extends GetxController {
           .select('partyname')
           .ilike('partyname', '%$query%')
           .limit(5);
-      partySuggestions.value =
-      List<String>.from(response.map((p) => p['partyname']));
+      partySuggestions.value = List<String>.from(
+        response.map((p) => p['partyname']),
+      );
     } catch (e) {
       print("❌ Error fetching party suggestions: $e");
     }
@@ -67,11 +82,12 @@ class PriceListController extends GetxController {
     isUserTyping.value = false;
 
     try {
-      final partyResponse = await supabase
-          .from('parties')
-          .select('id')
-          .eq('partyname', partyName)
-          .maybeSingle();
+      final partyResponse =
+          await supabase
+              .from('parties')
+              .select('id')
+              .eq('partyname', partyName)
+              .maybeSingle();
 
       if (partyResponse == null || partyResponse['id'] == null) {
         Fluttertoast.showToast(msg: "⚠️ Party not found!");
@@ -86,7 +102,7 @@ class PriceListController extends GetxController {
           .eq('party_id', partyResponse['id']);
 
       partyPrices.value = {
-        for (var item in response) item['product_id']: item['price']
+        for (var item in response) item['product_id']: item['price'],
       };
       partySuggestions.clear();
     } catch (e) {
@@ -97,7 +113,10 @@ class PriceListController extends GetxController {
   }
 
   Future<void> updatePrice(
-      int productId, String newPrice, BuildContext context) async {
+    int productId,
+    String newPrice,
+    BuildContext context,
+  ) async {
     if (newPrice.isEmpty || int.tryParse(newPrice) == null) {
       Fluttertoast.showToast(msg: "⚠️ Enter a valid price!");
       return;

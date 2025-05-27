@@ -8,13 +8,17 @@ class StockRepository {
 
   Future<List<StockList>> fetchStockList() async {
     try {
-      final response = await _supabase.from('stock').select('''
+      final response = await _supabase
+          .from('stock')
+          .select('''
           *, products_design!inner(*,
             product_head:product_head_id(*,
             folder:folder_id(folder_name))
           ),
           locations!inner(*)
-        ''');
+        ''')
+          .gt('quantity', 0);
+      
       return response.map<StockList>((p) => StockList.fromJson(p)).toList();
     } catch (e) {
       print('Error in StockRepository: $e');
@@ -59,11 +63,11 @@ class StockRepository {
       'modified_at': DateTime.now().toUtc().toIso8601String(),
     });
   }
-Future<void> updateDesign(int id, String name) async {
-    await _supabaseService.update('products_design', id, {
-      'design_no': name,
-    });
+
+  Future<void> updateDesign(int id, String name) async {
+    await _supabaseService.update('products_design', id, {'design_no': name});
   }
+
   Future<int> getTotalCount() async {
     try {
       return await _supabaseService.getTotalCount('stock');
