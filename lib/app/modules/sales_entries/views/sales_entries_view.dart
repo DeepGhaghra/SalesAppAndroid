@@ -8,6 +8,7 @@ import 'package:multi_select_flutter/util/multi_select_item.dart';
 import 'package:sales_app/app/core/common/base_screen.dart';
 import 'package:sales_app/app/core/utils/snackbar_utils.dart';
 import 'package:sales_app/app/modules/stock_view/model/StockList.dart';
+import 'package:sales_app/app/routes/app_pages.dart';
 
 import '../../../core/common/app_drawer.dart';
 import '../../../core/common/multi_select_drop_down.dart';
@@ -418,6 +419,13 @@ class SalesEntriesView extends GetView<SalesEntriesController> {
                     "Print Challan",
                     style: TextStyle(fontSize: 16, color: Colors.white),
                   ),
+                ),
+                SizedBox(height: 10), // Optional spacing
+                ElevatedButton(
+                  onPressed: () {
+                    Get.toNamed(Routes.SALESLIST);
+                  },
+                  child: Text("See All Sales Entries"),
                 ),
               ],
             ),

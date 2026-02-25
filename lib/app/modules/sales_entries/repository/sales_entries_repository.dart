@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../data/service/supabase_service.dart';
 import '../model/PartyInfo.dart';
+import '../model/SalesEntry.dart';
 
 class SalesEntriesRepository {
   final SupabaseService _supabaseService = SupabaseService();
@@ -152,6 +153,25 @@ class SalesEntriesRepository {
     } catch (e) {
       print('Error logging stock transaction: $e');
       rethrow;
+    }
+  }
+
+  Future<List<SalesInvoiceGroup>> fetchGroupedSales({
+    String? partyName,
+    String? date,
+  }) async {
+    try {
+      final data = await supabase.rpc(
+        'fetch_grouped_sales',
+        params: {'party': partyName, 'd': date},
+      );
+
+      final list = data as List<dynamic>;
+      return list
+          .map((e) => SalesInvoiceGroup.fromJson(Map<String, dynamic>.from(e)))
+          .toList();
+    } catch (e) {
+      throw Exception('Supabase RPC Error: $e');
     }
   }
 }

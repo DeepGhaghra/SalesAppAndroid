@@ -18,6 +18,7 @@ abstract class Routes {
   static const STOCKTRANSFER = _Paths.STOCKTRANSFER;
   static const ADDNEWSTOCK = _Paths.ADDNEWSTOCK;
   static const LOCATIONS = _Paths.LOCATIONS;
+  static const SALESLIST = _Paths.SALESLIST;
 }
 
 abstract class _Paths {
@@ -36,4 +37,5 @@ abstract class _Paths {
   static const STOCKTRANSFER = '/stockTransfer';
   static const ADDNEWSTOCK = '/addNewStock';
   static const LOCATIONS = '/location';
+  static const SALESLIST = '/salesList';
 }

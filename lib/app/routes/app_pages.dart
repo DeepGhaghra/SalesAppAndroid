@@ -14,7 +14,9 @@ import 'package:sales_app/app/modules/price_list/views/price_list_view.dart';
 import 'package:sales_app/app/modules/product_list/bindings/product_list_binding.dart';
 import 'package:sales_app/app/modules/product_list/views/product_list_view.dart';
 import 'package:sales_app/app/modules/sales_entries/bindings/sales_entries_binding.dart';
+import 'package:sales_app/app/modules/sales_entries/controllers/sales_list_controller.dart';
 import 'package:sales_app/app/modules/sales_entries/views/sales_entries_view.dart';
+import 'package:sales_app/app/modules/sales_entries/views/sales_list_view.dart';
 import 'package:sales_app/app/modules/stock_view/bindings/stock_binding.dart';
 import 'package:sales_app/app/modules/stock_view/views/stock_view.dart';
 import 'package:sales_app/app/modules/purchase/bindings/purchase_binding.dart';
@@ -113,6 +115,11 @@ class AppPages {
       name: _Paths.LOCATIONS,
       page: () => LocationView(),
       binding: LocationBinding(),
+    ),
+    GetPage(
+      name: _Paths.SALESLIST,
+      page: () => SalesViewPage(),
+      binding: SalesListBinding(),
     ),
   ];
 }
